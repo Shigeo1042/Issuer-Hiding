@@ -13,23 +13,13 @@ pub fn par_gen() -> (groth::PublicParameters){
 }
 
 #[derive(Debug, Clone)]
-struct SecretKey(pub Scalar);
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[allow(non_snake_case)]
-struct KeyPair {
-    secret_key: String,
-    public_key: String,
+pub struct Signature {
+    pub r2: String, //r2 = g2^r
+    pub s1: String, // s1 = (y1 * g1^sk)^(1/r)
+    pub t1: String // t1 = (y1^sk * message)^(1/r)
 }
 
-#[derive(Debug, Clone)]
-struct Signature {
-    r2: String, //r2 = g2^r
-    s1: String, // s1 = (y1 * g1^sk)^(1/r)
-    t1: String // t1 = (y1^sk * message)^(1/r)
-}
-
-pub fn key_gen(pp: &groth::PublicParameters) -> (groth1::KeyPair){
+pub fn key_gen(pp: groth::PublicParameters) -> (groth::KeyPair){
     let mut sk_bytes = self.0.to_bytes();
     sk_bytes.reverse();
 
@@ -43,7 +33,7 @@ pub fn key_gen(pp: &groth::PublicParameters) -> (groth1::KeyPair){
     let pk = pp::g2 * sk.0;
     let pk_bytes = pk.to_affine().to_compressed();
 
-    let keypair = KeyPair {
+    let keypair = groth::KeyPair {
         secret_key: hex::encode(sk_bytes),
         public_key: hex::encode(pk_bytes),
     };
@@ -51,13 +41,13 @@ pub fn key_gen(pp: &groth::PublicParameters) -> (groth1::KeyPair){
     return keypair
 }
 
-pub fn sign(pp: &groth::PublicParameters, sk: &groth1::SecretKey, message: &String) -> groth1::Signature{
+pub fn sign(pp: groth::PublicParameters, sk: groth::SecretKey, message: String) -> Signature{
     let r: UniformRand::rand(rng);
     
     let message_bytes = message.to_bytes();
-    let r2_bytes  = pp::g2 ^ r;
-    let s1_bytes = (pp::y1 * pp::g1 ^ sk) ^ (1/r);
-    let t1_bytes = (pp::y1 ^ sk * message_bytes) ^ (1/r);
+    let r2_bytes  = pp.g2 ^ r;
+    let s1_bytes = (pp.y1 * pp.g1 ^ sk) ^ (1/r);
+    let t1_bytes = (pp.y1 ^ sk * message_bytes) ^ (1/r);
     let mut r2_string = hex::encode(r2_bytes);
     let mut s1_string = hex::encode(s1_bytes);
     let mut t1_string = hex::encode(t1_bytes);
@@ -70,12 +60,12 @@ pub fn sign(pp: &groth::PublicParameters, sk: &groth1::SecretKey, message: &Stri
     return sig
 }
 
-pub fn rand(pp: &groth::PublicParameters, sig: &groth1::Signature) -> groth1::Signature{
+pub fn rand(pp: groth::PublicParameters, sig: Signature) -> Signature{
     let r: UniformRand::rand(rng);
     
-    r2_bytes = sig.r2.to_bytes();
-    s1_bytes = sig.s1.to_bytes();
-    t1_bytes = sig.t1.to_bytes();
+    let r2_bytes = sig.r2.to_bytes();
+    let s1_bytes = sig.s1.to_bytes();
+    let t1_bytes = sig.t1.to_bytes();
     let newr2_bytes  = r2_bytes ^ r;
     let news1_bytes = s1_bytes ^ (1/r);
     let newt1_bytes = t1_bytes ^ (1/r);
@@ -92,15 +82,15 @@ pub fn rand(pp: &groth::PublicParameters, sig: &groth1::Signature) -> groth1::Si
     return newsig
 }
 
-pub fn verify(pp: &groth::PublicParameters, pk: &String, sig: &groth1::Signature, message: &String) -> bool{
-    let boo1: bool = false;
-    let bool2: bool = false;
+pub fn verify(pp: groth::PublicParameters, pk: String, sig: Signature, message: String) -> bool{
+    let mut boo1: bool = false;
+    let mut bool2: bool = false;
     let r2 = sig.r2.to_bytes();
     let s1 = sig.s1.to_bytes();
     let t1 = sig.t1.to_bytes();
-    let g1 = pp::g1.to_bytes();
-    let g2 = pp::g2.to_bytes();
-    let y1 = pp::y1.to_bytes();
+    let g1 = pp.g1.to_bytes();
+    let g2 = pp.g2.to_bytes();
+    let y1 = pp.y1.to_bytes();
     let message_bytes = message.to_bytes();
     if e(s1,r2) == e(y1,g2) * e(g1,pk){
         boo1 = true;
@@ -109,10 +99,13 @@ pub fn verify(pp: &groth::PublicParameters, pk: &String, sig: &groth1::Signature
         bool2 = true;
     }
 
-    if boo1 && bool2{
-        return true;
-    }
-    else{
-        return false;
+    return boo1 && bool2
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
     }
 }
