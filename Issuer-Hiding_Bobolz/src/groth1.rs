@@ -8,7 +8,17 @@ use crate::groth;
 // use schnorr_pok::compute_random_oracle_challenge;
 
 pub fn par_gen() -> (groth::PublicParameters){
-    let pp: groth::PublicParameters;
+    let pp = groth::PublicParameters{
+        group1: Bls12_381::G1,
+        group2: Bls12_381::G2,
+        groupt: Bls12_381::TargetField,
+        e: Bls12_381::pairing(),
+        p: Bls12_381::Fr,
+        g1: Bls12_381::G1Prepared.get_element(),
+        g2: Bls12_381::G2Prepared.get_element(),
+        y1: Bls12_381::G1Prepared.get_element(),
+        y2: Bls12_381::G2Prepared.get_element(),
+    };
     return pp
 }
 
