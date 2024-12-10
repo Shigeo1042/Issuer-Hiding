@@ -169,6 +169,7 @@ pub fn verify_list(pp: &PublicParameters,(vpk, list): &(groth2::PublicKey, Vec<T
 }
 
 pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::PublicKey, message: &Vec<Fr>, (_, list): &(groth2::PublicKey, Vec<TrustedIssuerCredential>),open: &Vec<usize>) -> (groth1::Signature, groth1::PublicKey, groth2::Signature, PiKP, PiZKP){
+    //make random holder signature
     let new_cred = groth1::rand_sign(cred);
     let mut issuer_list = list[0].clone();
     for i in 0..list.len(){
@@ -176,12 +177,15 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
             issuer_list = list[i].clone();
         }
     }
+    //make message affine
     let mut message_pro = pp.h[0] * message[0];
     for i in 1..message.len(){
         message_pro += pp.h[i] * message[i];
     }
     let message_affine = G1Affine::from(message_pro);
+    //make random issuer public key signature
     let new_issuer_sig = groth2::rand_sign( &issuer_list.cred);
+    //make random blind values
     let mut rng = rand::thread_rng();
     let alpha = Fr::rand(&mut rng);
     let alpha_inverse = alpha.inverse().unwrap();
@@ -191,28 +195,33 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     let gamma_inverse = gamma.inverse().unwrap();
     let delta = Fr::rand(&mut rng);
     let delta_inverse = delta.inverse().unwrap();
+    //make blind holder signature
     let blind_cred = groth1::Signature{
         r2: new_cred.r2,
         s1: G1Affine::from(new_cred.s1 * (alpha_inverse)),
         t1: G1Affine::from(new_cred.t1 * (beta_inverse))
     };
+    //make blind issuer public key
     let blind_ipk = groth1::PublicKey(G2Affine::from(ipk.0 * (gamma_inverse)));
+    //make blind issuer public key signature
     let blind_issuer_sig = groth2::Signature{
         r1: new_issuer_sig.r1,
         s2: new_issuer_sig.s2,
         t2: G2Affine::from(new_issuer_sig.t2 * (delta_inverse))
     };
+    //make close message number list
     let mut close = Vec::new();
     for i in 0..message.len(){
         if !open.contains(&i){
             close.push(i);
         }
     }
-    // let close = close_mut.clone();
+    //make open message list
     let mut message_open_list: Vec<Fr> = Vec::new();
     for i in open{
         message_open_list.push(message[*i]);
     }
+    //make close message list
     let mut message_close_list: Vec<Fr> = Vec::new();
     for i in &close{
         message_close_list.push(message[*i]);
@@ -221,13 +230,16 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     for i in 1..open.len(){
         open_pro += pp.h[open[i]] * message_open_list[i];
     }
+    //make proof of knowledge
     let r = Fr::rand(&mut rng);
     let r_inverse = r.inverse().unwrap();
-    let abar = message_affine * r;
+    let r1 = gamma * r;
+    let r2 = beta * r;
+    let abar = G1Affine::from(message_affine * r);
     let p1 = G2Affine::from(blind_cred.r2 * alpha);
     let p2 = G1Affine::from(pp.g1 * (-gamma));
-    let p3 = G1Affine::from(pp.y1 * (-gamma - r));
-    let p4 = G2Affine::from(blind_cred.r2 * (beta + r));
+    let p3 = G1Affine::from(pp.y1 * (-r1));
+    let p4 = G2Affine::from(blind_cred.r2 * r2);
     let p5 = G1Affine::from(blind_issuer_sig.r1 * delta);
     let pi_kp = PiKP{
         p1,
@@ -235,13 +247,13 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
         p3,
         p4,
         p5,
-        abar: G1Affine::from(abar),
+        abar,
         open: open.clone(),
         len: message.len(),
         message_list: message_open_list,
     };
     let mut rprime : Vec<Fr> = Vec::new();
-    for _ in 0..5{
+    for _ in 0..6{
         rprime.push(Fr::rand(&mut rng));
     }
     for _ in &close {
@@ -254,7 +266,7 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     let u5 = blind_issuer_sig.r1 * rprime[4];
     let mut u6_proj = abar * rprime[5];
     for i in 0..close.len(){
-        u6_proj += pp.h[close[i]] * rprime[5+i];
+        u6_proj += pp.h[close[i]] * rprime[6+i];
     }
     let p1_string = p1.to_string();
     let p2_string = p2.to_string();
@@ -268,12 +280,12 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     let mut rprime2 : Vec<Fr> = Vec::new();
     rprime2.push(rprime[0] + challange * alpha);
     rprime2.push(rprime[1] + challange * (-gamma));
-    rprime2.push(rprime[2] + challange * (-gamma - r));
-    rprime2.push(rprime[3] + challange * (beta + r));
+    rprime2.push(rprime[2] + challange * (-r1));
+    rprime2.push(rprime[3] + challange * r2);
     rprime2.push(rprime[4] + challange * delta);
     rprime2.push(rprime[5] + challange * r_inverse);
     for i in 0..close.len(){
-        rprime2.push(rprime[i + 5] + challange * message_close_list[i]);
+        rprime2.push(rprime[i + 6] + challange * (-message_close_list[i]));
     }
     let pi_zkp = PiZKP{
         u1,
@@ -292,6 +304,7 @@ pub fn verify_present(pp: &PublicParameters, (vpk, _): &(groth2::PublicKey, Vec<
     let mut result = true;
     if Bls12_381::pairing(pp.y1,pp.g2) != Bls12_381::pairing(cred.s1, pi_kp.p1) + Bls12_381::pairing(pi_kp.p2, ipk.0){
         result = false;
+        println!("firstpairing");
     }
     if Bls12_381::pairing(pi_kp.abar, pp.g2) != Bls12_381::pairing(pi_kp.p3, ipk.0) + Bls12_381::pairing(cred.t1, pi_kp.p4){
         result = false;
@@ -299,9 +312,11 @@ pub fn verify_present(pp: &PublicParameters, (vpk, _): &(groth2::PublicKey, Vec<
     }
     if Bls12_381::pairing(issuer_sig.r1, issuer_sig.s2) != Bls12_381::pairing(pp.g1, pp.y2) + Bls12_381::pairing(vpk.0, pp.g2){
         result = false;
+        println!("thirdpairing");
     }
     if Bls12_381::pairing(vpk.0, pp.y2) != Bls12_381::pairing(pi_kp.p2, ipk.0) + Bls12_381::pairing(pi_kp.p5, issuer_sig.t2){
         result = false;
+        println!("fourthpairing");
     }
     let p1_string = pi_kp.p1.to_string();
     let p2_string = pi_kp.p2.to_string();
@@ -314,6 +329,7 @@ pub fn verify_present(pp: &PublicParameters, (vpk, _): &(groth2::PublicKey, Vec<
     let challange = hash_to_fr(&challange_u8);
     if challange != pi_zkp.challenge{
         result = false;
+        println!("challange");
     }
     let new_p1 = pi_zkp.u1 + pi_kp.p1 * pi_zkp.challenge;
     let new_p2 = pi_zkp.u2 + pi_kp.p2 * pi_zkp.challenge;
@@ -324,26 +340,37 @@ pub fn verify_present(pp: &PublicParameters, (vpk, _): &(groth2::PublicKey, Vec<
     for i in 1..pi_kp.open.len(){
         new_open_proj += pp.h[pi_kp.open[i]] * pi_kp.message_list[i];
     }
-    new_open_proj *= pi_zkp.challenge;
+    new_open_proj = G1Affine::from(new_open_proj) * pi_zkp.challenge;
     new_open_proj += pi_zkp.u6;
     if new_p1 != cred.r2 * pi_zkp.randome_fr[0]{
         result = false;
+        println!("p1");
     }
     if new_p2 != pp.g1 * pi_zkp.randome_fr[1]{
         result = false;
+        println!("p2");
     }
     if new_p3 != pp.y1 * pi_zkp.randome_fr[2]{
         result = false;
+        println!("p3");
     }
     if new_p4 != cred.r2 * pi_zkp.randome_fr[3]{
         result = false;
+        println!("p4");
     }
     if new_p5 != issuer_sig.r1 * pi_zkp.randome_fr[4]{
         result = false;
+        println!("p5");
+    }
+    let mut close = Vec::new();
+    for i in 0..pi_kp.len{
+        if !pi_kp.open.contains(&i){
+            close.push(i);
+        }
     }
     let mut new_p6 = pi_kp.abar * pi_zkp.randome_fr[5];
-    for i in 0..pi_zkp.randome_fr.len() - 5{
-        new_p6 += pp.h[i] * pi_zkp.randome_fr[5+i];
+    for i in 6..pi_zkp.randome_fr.len(){
+        new_p6 += pp.h[close[i - 6]] * pi_zkp.randome_fr[i];
     }
     if new_open_proj != new_p6{
         result = false;
