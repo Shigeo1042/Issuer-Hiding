@@ -151,18 +151,12 @@ pub fn issue_list(pp: &groth::PublicParameters, message: &Vec<G2Affine>, keypair
     return (pk, result);
 }
 
-pub fn verify_list(pp: &PublicParameters,(vpk, list): &(groth2::PublicKey, Vec<TrustedIssuerCredential>)) -> bool{
-    let pp_groth = groth::PublicParameters {
-        g1: pp.g1, 
-        g2: pp.g2, 
-        y1: pp.y1, 
-        y2: pp.y2,
-    };
+pub fn verify_list(pp: &groth::PublicParameters,(vpk, list): &(groth2::PublicKey, Vec<TrustedIssuerCredential>)) -> bool{
     let mut result = true;
     for trusted_cred in list{
         let ipk_i = &trusted_cred.ipk;
         let sig_i = &trusted_cred.cred;
-        let res_i = groth2::verify(&pp_groth, vpk, &sig_i, &ipk_i.0);
+        let res_i = groth2::verify(&pp, vpk, &sig_i, &ipk_i.0);
         result = result && res_i;
     }
     return result
@@ -381,27 +375,68 @@ pub fn verify_present(pp: &PublicParameters, (vpk, _): &(groth2::PublicKey, Vec<
 
 #[cfg(test)]
 mod tests {
-    use ark_bls12_381::{Fr, G2Affine};
+    use ark_bls12_381::{Bls12_381, G2Affine};
+    use ark_ec::pairing::Pairing;
+    use ark_std::{vec::Vec, UniformRand};
     use ark_ec::AffineRepr;
-    use num_bigint::BigUint;
+    use rand::{self, Rng};
+    pub type Fr = <Bls12_381 as Pairing>::ScalarField;
+// use num_bigint::BigUint;
     use crate::groth;
     #[test]
+    // fn test(){
+    //     for _ in 0..10{
+    //         it_works();
+    //     }
+    // }
     fn it_works() {
-        let pp = super::par_gen(&5);
+        let message_len = 10;
+        let issuer_num = 5;
+        let mut rng = rand::thread_rng();
+        let pp = super::par_gen(&message_len);
+        let pp_groth = groth::par_gen();
         let issuer_keypair = super::issuer_key_gen(&pp);
-        let message_string = vec!["message1", "message2", "message3", "message4", "message5"];
+        // let message_string = vec!["message1", "message2", "message3", "message4", "message5"];
+        // let mut message_fr = Vec::new();
+        // for i in 0..message_string.len(){
+        //     message_fr.push(Fr::from(BigUint::from_bytes_be(message_string[i].as_bytes())));
+        // }
         let mut message_fr = Vec::new();
-        for i in 0..message_string.len(){
-            message_fr.push(Fr::from(BigUint::from_bytes_be(message_string[i].as_bytes())));
+        for _ in 0..message_len{
+            message_fr.push(Fr::rand(&mut rng));
         }
         let cred = super::issue(&pp, &issuer_keypair.secret_key, &message_fr);
         let result1 = super::verify(&pp, &cred, &message_fr, &issuer_keypair.public_key);
         assert_eq!(result1, true);
-        let verifier_keypair = super::verifier_key_gen(&groth::par_gen());
-        let trusted_issuer_credential = super::issue_list(&groth::par_gen(), &vec![G2Affine::generator(), G2Affine::generator(), issuer_keypair.public_key.0, G2Affine::generator(), G2Affine::generator()], &verifier_keypair);
-        let result2 = super::verify_list(&pp, &trusted_issuer_credential);
+        let verifier_keypair = super::verifier_key_gen(&pp_groth);
+        let mut issuer_list = Vec::new();
+        for _ in 0..issuer_num{
+            issuer_list.push(G2Affine::generator());
+        }
+        let r = rng.gen_range(1..issuer_num);
+        issuer_list[r] = issuer_keypair.public_key.0;
+        let trusted_issuer_credential = super::issue_list(&pp_groth, &issuer_list, &verifier_keypair);
+        let result2 = super::verify_list(&pp_groth, &trusted_issuer_credential);
         assert_eq!(result2, true);
-        let pt = super::present(&pp, &cred, &issuer_keypair.public_key, &message_fr, &trusted_issuer_credential, &vec![1,3,4]);
+        let open_num = rng.gen_range(1..(message_len / 2));
+        let mut open = Vec::new();
+        for j in 0..open_num{
+            let mut flg = true;
+            let mut x = rng.gen_range(0..message_len) as usize;
+            while flg {
+                flg = false;
+                for i in 0..j{
+                    if x == open[i as usize]{
+                        flg = true;
+                        x = rng.gen_range(0..message_len) as usize;
+                        break;
+                    }
+                }
+            }
+            open.push(x);
+        }
+        open.sort();
+        let pt = super::present(&pp, &cred, &issuer_keypair.public_key, &message_fr, &trusted_issuer_credential, &open);
         let result3 = super::verify_present(&pp, &trusted_issuer_credential, &pt);
         assert_eq!(result3, true);
     }

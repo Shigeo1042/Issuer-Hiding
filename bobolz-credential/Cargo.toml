@@ -3,14 +3,24 @@ name = "bobolz-credential"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "bobolz_rs_lib"
+path = "src/lib.rs"
+
 [dependencies]
 ark-bls12-381 = "0.5.0"
 ark-ec = "0.5.0"
 ark-ff = "0.5.0"
 ark-serialize = "0.5.0"
 ark-std = "0.5.0"
+criterion = "0.5.1"
 multibase = "0.9.1"
 num-bigint = "0.4.6"
 rand = "0.8.5"
 schnorr_pok = "0.20.0"
 sha2 = "0.10.8"
+
+[[bench]]
+name = "bobolz"
+path = "benches/bench_bobolz.rs"
+harness = false
