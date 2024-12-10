@@ -1,9 +1,10 @@
-use ark_bls12_381::{G1Projective, G2Projective};
-use ark_bls12_381::{G1Affine, G2Affine, Bls12_381};
-use ark_ff::Field;
+use ark_bls12_381::{G1Affine, G2Affine, Bls12_381, G1Projective, G2Projective};
+use ark_ff::{Field, PrimeField};
 use ark_ec::pairing::Pairing;
 use ark_std::{fmt::Debug, vec::Vec, UniformRand};
 use rand;
+use sha2::{Digest, Sha256};
+// use mulitbase::Base;
 // use serde::{Deserialize, Serialize};
 
 use crate::groth;
@@ -50,6 +51,15 @@ pub struct PiZKP{
 pub struct TrustedIssuerCredential{
     pub ipk: groth1::PublicKey,
     pub cred: groth2::Signature
+}
+
+fn hash_to_fr(input: &[u8]) -> Fr {
+    // Step 1: Compute the hash (SHA-256 in this case)
+    let hash_bytes = Sha256::digest(input);
+
+    // Step 2: Convert the hash bytes to a field element in Fr
+    // Fr::from_be_bytes_mod_order safely maps bytes to an Fr element
+    Fr::from_be_bytes_mod_order(&hash_bytes)
 }
 
 pub fn par_gen(len: &i32) -> PublicParameters{
@@ -215,12 +225,17 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     let r = Fr::rand(&mut rng);
     let r_inverse = r.inverse().unwrap();
     let abar = message_affine * r;
+    let p1 = G2Affine::from(blind_cred.r2 * alpha);
+    let p2 = G1Affine::from(pp.g1 * (-gamma));
+    let p3 = G1Affine::from(pp.y1 * (-gamma - r));
+    let p4 = G2Affine::from(blind_cred.r2 * (beta + r));
+    let p5 = G1Affine::from(blind_issuer_sig.r1 * delta);
     let pi_kp = PiKP{
-        p1: G2Affine::from(blind_cred.r2 * alpha),
-        p2: G1Affine::from(pp.g1 * (-gamma)),
-        p3: G1Affine::from(pp.y1 * (-gamma - r)),
-        p4: G2Affine::from(blind_cred.r2 * (beta + r)),
-        p5: G1Affine::from(blind_issuer_sig.r1 * delta),
+        p1,
+        p2,
+        p3,
+        p4,
+        p5,
         abar: G1Affine::from(abar),
         open: open.clone(),
         len: message.len(),
@@ -242,7 +257,15 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     for i in 0..close.len(){
         u6_proj += pp.h[close[i]] * rprime[5+i];
     }
-    let challange = Fr::rand(&mut rng);
+    let p1_string = p1.to_string();
+    let p2_string = p2.to_string();
+    let p3_string = p3.to_string();
+    let p4_string = p4.to_string();
+    let p5_string = p5.to_string();
+    let abar_string = abar.to_string();
+    let challange_string = p1_string + &p2_string + &p3_string + &p4_string + &p5_string + &abar_string;
+    let challange_u8 = challange_string.as_bytes();
+    let challange = hash_to_fr(&challange_u8);
     let mut rprime2 : Vec<Fr> = Vec::new();
     rprime2.push(rprime[0] + challange * alpha);
     rprime2.push(rprime[1] + challange * (-gamma));
@@ -278,6 +301,18 @@ pub fn verify_present(pp: &PublicParameters, (vpk, _): (&groth2::PublicKey, &Vec
         result = false;
     }
     if Bls12_381::pairing(vpk.0, pp.y2) != Bls12_381::pairing(pi_kp.p2, ipk.0) + Bls12_381::pairing(pi_kp.p5, issuer_sig.t2){
+        result = false;
+    }
+    let p1_string = pi_kp.p1.to_string();
+    let p2_string = pi_kp.p2.to_string();
+    let p3_string = pi_kp.p3.to_string();
+    let p4_string = pi_kp.p4.to_string();
+    let p5_string = pi_kp.p5.to_string();
+    let abar_string = pi_kp.abar.to_string();
+    let challange_string = p1_string + &p2_string + &p3_string + &p4_string + &p5_string + &abar_string;
+    let challange_u8 = challange_string.as_bytes();
+    let challange = hash_to_fr(&challange_u8);
+    if challange != pi_zkp.challenge{
         result = false;
     }
     let new_p1 = pi_zkp.u1 + pi_kp.p1 * pi_zkp.challenge;
