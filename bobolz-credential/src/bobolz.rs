@@ -143,7 +143,7 @@ pub fn issue_list(pp: &groth::PublicParameters, message: &Vec<G2Affine>, keypair
             0: ipk_affine
         };
         let cred = TrustedIssuerCredential{
-            ipk: ipk,
+            ipk,
             cred: signature
         };
         result.push(cred);
@@ -277,11 +277,11 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
         rprime2.push(rprime[i + 5] + challange * message_close_list[i]);
     }
     let pi_zkp = PiZKP{
-        u1: u1,
-        u2: u2,
-        u3: u3,
-        u4: u4,
-        u5: u5,
+        u1,
+        u2,
+        u3,
+        u4,
+        u5,
         u6: u6_proj,
         challenge: challange,
         randome_fr: rprime2,

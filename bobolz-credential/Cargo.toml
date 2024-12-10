@@ -1,5 +1,5 @@
 [package]
-name = "Issuer-Hiding_Bobolz"
+name = "bobolz-credential"
 version = "0.1.0"
 edition = "2021"
 
