@@ -1,24 +1,25 @@
 use ark_bls12_381::{G1Affine, G2Affine, Bls12_381};
 use ark_ff::Field;
 use ark_ec::pairing::Pairing;
-use ark_std::{fmt::Debug, UniformRand};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::{fmt::Debug, UniformRand, vec::Vec};
 use rand;
 
 use crate::groth;
 // use schnorr_pok::compute_random_oracle_challenge;
 pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PublicKey(pub G2Affine);
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 #[allow(non_snake_case)]
 pub struct KeyPair {
     pub secret_key: groth::SecretKey,
     pub public_key: PublicKey,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, CanonicalDeserialize, CanonicalSerialize)]
 pub struct Signature {
     pub r2: G2Affine, //r2 = g2^r
     pub s1: G1Affine, // s1 = (y1 * g1^sk)^(1/r)
@@ -26,8 +27,7 @@ pub struct Signature {
 }
 
 pub fn par_gen() -> groth::PublicParameters{
-    let mut rng = rand::thread_rng();
-    let pp = groth::par_gen(&mut rng);
+    let pp = groth::par_gen();
     return pp
 }
 
@@ -62,8 +62,8 @@ pub fn sign(pp: &groth::PublicParameters, sk: &groth::SecretKey, message: &G1Aff
     let r_inverse = r.inverse().unwrap();
 
     let r2  = pp.g2 * r;
-    let s1 = (pp.g1 + pp.g1 * sk.0) * (r_inverse);
-    let t1 = (pp.y1 + *message * sk.0) * (r_inverse);
+    let s1 = (pp.y1 + pp.g1 * sk.0) * (r_inverse);
+    let t1 = (pp.y1 * sk.0 + *message) * (r_inverse);
     let r2_affine = G2Affine::from(r2);
     let s1_affine = G1Affine::from(s1);
     let t1_affine = G1Affine::from(t1);
@@ -119,8 +119,21 @@ pub fn verify(pp: &groth::PublicParameters, pk: &PublicKey, sig: &Signature, mes
 
 #[cfg(test)]
 mod tests {
+    use ark_bls12_381::{Fr, G1Affine};
+    use ark_std::UniformRand;
+    use num_bigint::BigUint;
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        let pp = super::par_gen();
+        let keypair = super::key_gen(&pp);
+        let message_string = "It's a Bobolz et.al. Issuer-Hiding";
+        let message_fr = Fr::from(BigUint::from_bytes_be(message_string.as_bytes()));
+        let mut rng = ark_std::rand::thread_rng();
+        let h1 = G1Affine::rand(&mut rng);
+        let message = G1Affine::from(h1 * message_fr);
+        let sig = super::sign(&pp, &keypair.secret_key, &message);
+        let newsig = super::rand_sign(&sig);
+        let result = super::verify(&pp, &keypair.public_key, &newsig, &message);
+        assert_eq!(result, true);
     }
 }
