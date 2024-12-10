@@ -3,9 +3,8 @@ use ark_ff::{Field, PrimeField};
 use ark_ec::pairing::Pairing;
 use ark_std::{fmt::Debug, vec::Vec, UniformRand};
 use rand;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use sha2::{Digest, Sha256};
-// use mulitbase::Base;
-// use serde::{Deserialize, Serialize};
 
 use crate::groth;
 use crate::groth1;
@@ -13,7 +12,7 @@ use crate::groth2;
 
 pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PublicParameters {
     pub g1: G1Affine,
     pub g2: G2Affine,
@@ -22,7 +21,7 @@ pub struct PublicParameters {
     pub h: Vec<G1Affine>
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PiKP{
     pub p1: G2Affine,
     pub p2: G1Affine,
@@ -35,7 +34,7 @@ pub struct PiKP{
     pub message_list: Vec<Fr>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PiZKP{
     pub u1: G2Projective,
     pub u2: G1Projective,
@@ -47,7 +46,7 @@ pub struct PiZKP{
     pub randome_fr: Vec<Fr>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct TrustedIssuerCredential{
     pub ipk: groth1::PublicKey,
     pub cred: groth2::Signature
@@ -64,7 +63,7 @@ fn hash_to_fr(input: &[u8]) -> Fr {
 
 pub fn par_gen(len: &i32) -> PublicParameters{
     let mut rng = rand::thread_rng();
-    let pp_groth = groth::par_gen(&mut rng);
+    let pp_groth = groth::par_gen();
     let mut hvec: Vec<G1Affine> = Vec::new();
     for _ in 0..*len{
         hvec.push(G1Affine::rand(&mut rng));
@@ -90,16 +89,16 @@ pub fn issuer_key_gen(pp: &PublicParameters) -> groth1::KeyPair{
     return keypair
 }
 
-pub fn issue(pp: &PublicParameters, isk: &groth::SecretKey, message: &Fr) -> groth1::Signature{
+pub fn issue(pp: &PublicParameters, isk: &groth::SecretKey, message: &Vec<Fr>) -> groth1::Signature{
     let pp_groth = groth::PublicParameters {
         g1: pp.g1, 
         g2: pp.g2, 
         y1: pp.y1, 
         y2: pp.y2,
     };
-    let mut message_pro = pp.h[0] * message;
+    let mut message_pro = pp.h[0] * message[0];
     for i in 1..pp.h.len(){
-        message_pro += pp.h[i] * message;
+        message_pro += pp.h[i] * message[i];
     }
     let message_affine = G1Affine::from(message_pro);
     let signature = groth1::sign(&pp_groth, isk, &message_affine);
@@ -152,7 +151,7 @@ pub fn issue_list(pp: &groth::PublicParameters, message: &Vec<G2Affine>, keypair
     return (pk, result);
 }
 
-pub fn verify_list(pp: &PublicParameters,(vpk, list): (&groth2::PublicKey, &Vec<TrustedIssuerCredential>)) -> bool{
+pub fn verify_list(pp: &PublicParameters,(vpk, list): &(groth2::PublicKey, Vec<TrustedIssuerCredential>)) -> bool{
     let pp_groth = groth::PublicParameters {
         g1: pp.g1, 
         g2: pp.g2, 
@@ -169,8 +168,8 @@ pub fn verify_list(pp: &PublicParameters,(vpk, list): (&groth2::PublicKey, &Vec<
     return result
 }
 
-pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::PublicKey, message: &Vec<Fr>, (_, list): (groth2::PublicKey, Vec<TrustedIssuerCredential>),open: &Vec<usize>) -> (groth1::Signature, groth1::PublicKey, groth2::Signature, PiKP, PiZKP){
-    let newcred = groth1::rand_sign(cred);
+pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::PublicKey, message: &Vec<Fr>, (_, list): &(groth2::PublicKey, Vec<TrustedIssuerCredential>),open: &Vec<usize>) -> (groth1::Signature, groth1::PublicKey, groth2::Signature, PiKP, PiZKP){
+    let new_cred = groth1::rand_sign(cred);
     let mut issuer_list = list[0].clone();
     for i in 0..list.len(){
         if list[i].ipk == *ipk{
@@ -193,15 +192,15 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     let delta = Fr::rand(&mut rng);
     let delta_inverse = delta.inverse().unwrap();
     let blind_cred = groth1::Signature{
-        r2: cred.r2,
-        s1: G1Affine::from(cred.s1 * (alpha_inverse)),
-        t1: G1Affine::from(cred.t1 * (beta_inverse))
+        r2: new_cred.r2,
+        s1: G1Affine::from(new_cred.s1 * (alpha_inverse)),
+        t1: G1Affine::from(new_cred.t1 * (beta_inverse))
     };
     let blind_ipk = groth1::PublicKey(G2Affine::from(ipk.0 * (gamma_inverse)));
     let blind_issuer_sig = groth2::Signature{
-        r1: issuer_list.cred.r1,
-        s2: issuer_list.cred.s2,
-        t2: G2Affine::from(issuer_list.cred.t2 * (delta_inverse))
+        r1: new_issuer_sig.r1,
+        s2: new_issuer_sig.s2,
+        t2: G2Affine::from(new_issuer_sig.t2 * (delta_inverse))
     };
     let mut close = Vec::new();
     for i in 0..message.len(){
@@ -286,16 +285,17 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
         challenge: challange,
         randome_fr: rprime2,
     };
-    return (newcred, blind_ipk, new_issuer_sig, pi_kp, pi_zkp)
+    return (blind_cred, blind_ipk, blind_issuer_sig, pi_kp, pi_zkp)
 }
 
-pub fn verify_present(pp: &PublicParameters, (vpk, _): (&groth2::PublicKey, &Vec<TrustedIssuerCredential>), cred: &groth1::Signature, ipk: &groth1::PublicKey, issuer_sig: &groth2::Signature, pi_kp: &PiKP, pi_zkp: &PiZKP) -> bool{
+pub fn verify_present(pp: &PublicParameters, (vpk, _): &(groth2::PublicKey, Vec<TrustedIssuerCredential>), (cred, ipk, issuer_sig, pi_kp, pi_zkp): &(groth1::Signature, groth1::PublicKey, groth2::Signature, PiKP, PiZKP)) -> bool{
     let mut result = true;
     if Bls12_381::pairing(pp.y1,pp.g2) != Bls12_381::pairing(cred.s1, pi_kp.p1) + Bls12_381::pairing(pi_kp.p2, ipk.0){
         result = false;
     }
     if Bls12_381::pairing(pi_kp.abar, pp.g2) != Bls12_381::pairing(pi_kp.p3, ipk.0) + Bls12_381::pairing(cred.t1, pi_kp.p4){
         result = false;
+        println!("secondpairing");
     }
     if Bls12_381::pairing(issuer_sig.r1, issuer_sig.s2) != Bls12_381::pairing(pp.g1, pp.y2) + Bls12_381::pairing(vpk.0, pp.g2){
         result = false;
@@ -342,19 +342,40 @@ pub fn verify_present(pp: &PublicParameters, (vpk, _): (&groth2::PublicKey, &Vec
         result = false;
     }
     let mut new_p6 = pi_kp.abar * pi_zkp.randome_fr[5];
-    for i in 0..pi_zkp.randome_fr.len(){
+    for i in 0..pi_zkp.randome_fr.len() - 5{
         new_p6 += pp.h[i] * pi_zkp.randome_fr[5+i];
     }
     if new_open_proj != new_p6{
         result = false;
+        println!("p6");
     }
     return result
 }
 
 #[cfg(test)]
 mod tests {
+    use ark_bls12_381::{Fr, G2Affine};
+    use ark_ec::AffineRepr;
+    use num_bigint::BigUint;
+    use crate::groth;
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        let pp = super::par_gen(&5);
+        let issuer_keypair = super::issuer_key_gen(&pp);
+        let message_string = vec!["message1", "message2", "message3", "message4", "message5"];
+        let mut message_fr = Vec::new();
+        for i in 0..message_string.len(){
+            message_fr.push(Fr::from(BigUint::from_bytes_be(message_string[i].as_bytes())));
+        }
+        let cred = super::issue(&pp, &issuer_keypair.secret_key, &message_fr);
+        let result1 = super::verify(&pp, &cred, &message_fr, &issuer_keypair.public_key);
+        assert_eq!(result1, true);
+        let verifier_keypair = super::verifier_key_gen(&groth::par_gen());
+        let trusted_issuer_credential = super::issue_list(&groth::par_gen(), &vec![G2Affine::generator(), G2Affine::generator(), issuer_keypair.public_key.0, G2Affine::generator(), G2Affine::generator()], &verifier_keypair);
+        let result2 = super::verify_list(&pp, &trusted_issuer_credential);
+        assert_eq!(result2, true);
+        let pt = super::present(&pp, &cred, &issuer_keypair.public_key, &message_fr, &trusted_issuer_credential, &vec![1,3,4]);
+        let result3 = super::verify_present(&pp, &trusted_issuer_credential, &pt);
+        assert_eq!(result3, true);
     }
 }
