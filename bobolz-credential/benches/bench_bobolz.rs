@@ -107,7 +107,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
         });
     }
 
-    for message_len_temp in [5, 10, 50, 100].iter(){
+    for message_len_temp in [10, 100, 1000, 10000].iter(){
         let pp_temp = bobolz_rs_lib::bobolz::par_gen(&message_len_temp);
         let mut message_fr_temp = Vec::new();
         for _ in 0..*message_len_temp{
@@ -140,7 +140,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
                 open_temp.push(x);
             }
             open_temp.sort();
-            for issuer_num_temp in [5, 10, 50, 100].iter(){
+            for issuer_num_temp in [50, 100].iter(){
                 let mut issuer_list_temp = Vec::new();
                 for _ in 0..*issuer_num_temp{
                     issuer_list_temp.push(G2Affine::generator());
