@@ -27,13 +27,18 @@ fn bobolz_benchmark(c: &mut Criterion) {
 
     let issuer_key_pair = bobolz_rs_lib::bobolz::issuer_key_gen(&pp_groth);
     let verifier_key_pair = bobolz_rs_lib::bobolz::verifier_key_gen(&pp_groth);
-    for message_len_temp in [5, 10, 15, 20].iter(){
+    for message_len_temp in [5, 10, 50, 100].iter(){
         let pp_temp = bobolz_rs_lib::bobolz::par_gen(&message_len_temp);
         let mut message_fr_temp = Vec::new();
         for _ in 0..*message_len_temp{
             message_fr_temp.push(Fr::rand(&mut rng));
         }
-        c.bench_function("Issuer Sign", |b|{
+
+        let bench_name = format!(
+            "Issuer_Sign_messagelen{}",
+            message_len_temp
+        );
+        c.bench_function(&bench_name, |b|{
             b.iter(|| {
                 let signature = bobolz_rs_lib::bobolz::issue(&pp_temp, &issuer_key_pair.secret_key,&message_fr_temp);
                 black_box(signature);
@@ -41,14 +46,19 @@ fn bobolz_benchmark(c: &mut Criterion) {
         });
     }
 
-    for message_len_temp in [5, 10, 15, 20].iter(){
+    for message_len_temp in [5, 10, 50, 100].iter(){
         let pp_temp = bobolz_rs_lib::bobolz::par_gen(&message_len_temp);
         let mut message_fr_temp = Vec::new();
         for _ in 0..*message_len_temp{
             message_fr_temp.push(Fr::rand(&mut rng));
         }
         let cred_temp = bobolz_rs_lib::bobolz::issue(&pp_temp, &issuer_key_pair.secret_key,&message_fr_temp);
-        c.bench_function("Verify Credential", |b|{
+
+        let bench_name = format!(
+            "Verify_Credential_messagelen{}",
+            message_len_temp
+        );
+        c.bench_function(&bench_name, |b|{
             b.iter(|| {
                 let result = bobolz_rs_lib::bobolz::verify(&pp_temp, &cred_temp, &message_fr_temp, &issuer_key_pair.public_key);
                 black_box(result);
@@ -61,7 +71,12 @@ fn bobolz_benchmark(c: &mut Criterion) {
         for _ in 0..*issuer_num_temp{
             issuer_list_temp.push(G2Affine::generator());
         }
-        c.bench_function("verifier's trusted issuer list", |b|{
+
+        let bench_name = format!(
+            "Issue_Verifier's_trusted_issuer_list_issuernum{}",
+            issuer_num_temp
+        );
+        c.bench_function(&bench_name, |b|{
             let r = rng.gen_range(1..*issuer_num_temp);
             issuer_list_temp[r] = issuer_key_pair.public_key.0;
             b.iter(|| {
@@ -79,7 +94,12 @@ fn bobolz_benchmark(c: &mut Criterion) {
         let r = rng.gen_range(1..*issuer_num_temp);
         issuer_list_temp[r] = issuer_key_pair.public_key.0;
         let trusted_issuer_credential = bobolz_rs_lib::bobolz::issue_list(&pp_groth, &issuer_list_temp, &verifier_key_pair);
-        c.bench_function("verify verifier's trusted issuer list", |b|{
+
+        let bench_name = format!(
+            "Verify_Verifier's_trusted_issuer_list_issuernum{}",
+            issuer_num_temp
+        );
+        c.bench_function(&bench_name, |b|{
             b.iter(|| {
                 let result = bobolz_rs_lib::bobolz::verify_list(&pp_groth, &trusted_issuer_credential);
                 black_box(result);
@@ -87,7 +107,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
         });
     }
 
-    for message_len_temp in [5, 10, 15, 20].iter(){
+    for message_len_temp in [5, 10, 50, 100].iter(){
         let pp_temp = bobolz_rs_lib::bobolz::par_gen(&message_len_temp);
         let mut message_fr_temp = Vec::new();
         for _ in 0..*message_len_temp{
@@ -128,7 +148,12 @@ fn bobolz_benchmark(c: &mut Criterion) {
                 let r = rng.gen_range(1..*issuer_num_temp);
                 issuer_list_temp[r] = issuer_key_pair.public_key.0;
                 let trusted_issuer_credential_temp = bobolz_rs_lib::bobolz::issue_list(&pp_groth, &issuer_list_temp, &verifier_key_pair);
-                c.bench_function("present", |b|{
+
+                let bench_name = format!(
+                    "Present_mlen{}_olen{}_issuernum{}",
+                    message_len_temp, open_message_len_i, issuer_num_temp
+                );
+                c.bench_function(&bench_name, |b|{
                     b.iter(|| {
                         let pt = bobolz_rs_lib::bobolz::present(&pp_temp, &cred_temp, &issuer_key_pair.public_key, &message_fr_temp, &trusted_issuer_credential_temp, &open_temp);
                         black_box(pt);
@@ -138,7 +163,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
         }
     }
 
-    for message_len_temp in [5, 10, 15, 20].iter(){
+    for message_len_temp in [5, 10, 50, 100].iter(){
         let pp_temp = bobolz_rs_lib::bobolz::par_gen(&message_len_temp);
         let mut message_fr_temp = Vec::new();
         for _ in 0..*message_len_temp{
@@ -181,7 +206,12 @@ fn bobolz_benchmark(c: &mut Criterion) {
                 let trusted_issuer_credential_temp = bobolz_rs_lib::bobolz::issue_list(&pp_groth, &issuer_list_temp, &verifier_key_pair);
                 let pt_temp = bobolz_rs_lib::bobolz::present(&pp_temp, &cred_temp, &issuer_key_pair.public_key, &message_fr_temp, &trusted_issuer_credential_temp, &open_temp);
 
-                c.bench_function("verify_present", |b|{
+                let bench_name = format!(
+                    "Verify_present_mlen{}_olen{}_issuernum{}",
+                    message_len_temp, open_message_len_i, issuer_num_temp
+                );
+
+                c.bench_function(&bench_name, |b|{
                     b.iter(|| {
                         let result = bobolz_rs_lib::bobolz::verify_present(&pp_temp, &trusted_issuer_credential_temp, &pt_temp);
                         black_box(result);
