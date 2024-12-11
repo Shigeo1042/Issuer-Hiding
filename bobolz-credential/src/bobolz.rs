@@ -78,13 +78,7 @@ pub fn par_gen(len: &i32) -> PublicParameters{
     return pp_bobolz
 }
 
-pub fn issuer_key_gen(pp: &PublicParameters) -> groth1::KeyPair{
-    let pp_groth = groth::PublicParameters {
-        g1: pp.g1, 
-        g2: pp.g2, 
-        y1: pp.y1, 
-        y2: pp.y2,
-    };
+pub fn issuer_key_gen(pp_groth: &groth::PublicParameters) -> groth1::KeyPair{
     let keypair = groth1::key_gen(&pp_groth);
     return keypair
 }
@@ -131,13 +125,7 @@ pub fn issue_list(pp: &groth::PublicParameters, message: &Vec<G2Affine>, keypair
     let mut result: Vec<TrustedIssuerCredential> = Vec::new();
     for i in 0..message.len(){
         let ipk_affine = message[i];
-        let pp_groth = groth::PublicParameters {
-            g1: pp.g1, 
-            g2: pp.g2, 
-            y1: pp.y1, 
-            y2: pp.y2,
-        };
-        let signature = groth2::sign(&pp_groth, &keypair.secret_key, &ipk_affine);
+        let signature = groth2::sign(&pp, &keypair.secret_key, &ipk_affine);
         let ipk = groth1::PublicKey{
             0: ipk_affine
         };
@@ -395,7 +383,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let pp = super::par_gen(&message_len);
         let pp_groth = groth::par_gen();
-        let issuer_keypair = super::issuer_key_gen(&pp);
+        let issuer_keypair = super::issuer_key_gen(&pp_groth);
         // let message_string = vec!["message1", "message2", "message3", "message4", "message5"];
         // let mut message_fr = Vec::new();
         // for i in 0..message_string.len(){
