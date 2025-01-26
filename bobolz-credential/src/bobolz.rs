@@ -208,10 +208,10 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     for i in &close{
         message_close_list.push(message[*i]);
     }
-    let mut open_pro = pp.h[open[0]] * message_open_list[0];
-    for i in 1..open.len(){
-        open_pro += pp.h[open[i]] * message_open_list[i];
-    }
+    // let mut open_pro = pp.h[open[0]] * message_open_list[0];
+    // for i in 1..open.len(){
+    //     open_pro += pp.h[open[i]] * message_open_list[i];
+    // }
     //make proof of knowledge
     let r = Fr::rand(&mut rng);
     let r_inverse = r.inverse().unwrap();
