@@ -18,9 +18,7 @@
     - $\mathsf{Groth_1.KGen}(pp): \mathit{sk}\stackrel{R}{\leftarrow}\mathbb{Z}_p^\ast, \mathit{pk} = \tilde{G}^{\mathit{sk}}$
     - $\mathsf{Groth_1.Sign}(pp, \mathit{sk},M):$ ランダムな $r$ を $r\stackrel{R}{\leftarrow}\mathbb{Z}_p^\ast$ で選ぶ.
 
-        ```math
-        \sigma = (\tilde{R},S,T) = (\tilde{G}^r, (Y\cdot G^{\mathit{sk}})^{1/r}, (Y^{\mathit{sk}}\cdot M)^{1/r})
-        ```
+        $$\sigma = (\tilde{R},S,T) = (\tilde{G}^r, (Y\cdot G^{\mathit{sk}})^{1/r}, (Y^{\mathit{sk}}\cdot M)^{1/r})$$
     
     - $\mathsf{Groth_1.Rand}(pp,\sigma):$ ランダムな $r'$ を $r'\stackrel{R}{\leftarrow}\mathbb{Z}_p^\ast$ で選ぶ.
         
