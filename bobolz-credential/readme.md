@@ -22,36 +22,26 @@
     
     - $\mathsf{Groth_1.Rand}(pp,\sigma):$ ランダムな $r'$ を $r'\stackrel{R}{\leftarrow}\mathbb{Z}_p^\ast$ で選ぶ.
         
-        ```math
-        \sigma' = (\tilde{R}',S',T') = (\tilde{R}^{r'}, S^{1/r'}, T^{1/r'})
-        ```
+        $$\sigma' = (\tilde{R}',S',T') = (\tilde{R}^{r'}, S^{1/r'}, T^{1/r'})$$
         
     - $\mathsf{Groth_1.Verify}(pp,\mathit{pk},\sigma,M):$  check
     
-        ```math
-        e(S,\tilde{R}) = e(Y,\tilde{G})\cdot e(G,\mathit{pk}), e(T,\tilde{R}) = e(Y,\mathit{pk})\cdot e(M,\tilde{G})
-        ```
+        $$e(S,\tilde{R}) = e(Y,\tilde{G})\cdot e(G,\mathit{pk}), e(T,\tilde{R}) = e(Y,\mathit{pk})\cdot e(M,\tilde{G})$$
     
 - $\mathsf{Groth_2}$
     - $\mathsf{Groth_2.ParGen}(1^\lambda): pp:=(\mathbb{G}_1, \mathbb{G}_2, \mathbb{G}_\mathrm{T}, e, p, G, \tilde{G})$, $\mathit{e}$はペアリング演算, $p$ は素数, $G\in \mathbb{G}_1, \tilde{G}\in \mathbb{G}_2$までは$\mathsf{Groth_1}$と同じもの。 ランダム要素 $\tilde{Y}\stackrel{R}{\leftarrow} \mathbb{G}_2$
     - $\mathsf{Groth_2.KGen}(pp): \mathit{sk}\stackrel{R}{\leftarrow}\mathbb{Z}_p^\ast, \mathit{pk} = G^{\mathit{sk}}$
     - $\mathsf{Groth_2.Sign}(pp, \mathit{sk},M):$ ランダムな $r$ を $r\stackrel{R}{\leftarrow}\mathbb{Z}_p^\ast$ で選ぶ.
     
-        ```math
-        \sigma = (R,\tilde{S},\tilde{T}) = (G^r, (\tilde{Y}\cdot \tilde{G}^{\mathit{sk}})^{1/r}, (\tilde{Y}^{\mathit{sk}}\cdot M)^{1/r})
-        ```
+        $$\sigma = (R,\tilde{S},\tilde{T}) = (G^r, (\tilde{Y}\cdot \tilde{G}^{\mathit{sk}})^{1/r}, (\tilde{Y}^{\mathit{sk}}\cdot M)^{1/r})$$
     
     - $\mathsf{Groth_2.Rand}(pp,\sigma):$ ランダムな $r'$ を $r'\stackrel{R}{\leftarrow}\mathbb{Z}_p^\ast$ で選ぶ.
         
-        ```math
-        \sigma' = (R',\tilde{S}',\tilde{T}') = (R^{r'}, \tilde{S}^{1/r'}, \tilde{T}^{1/r'})
-        ```
+        $$\sigma' = (R',\tilde{S}',\tilde{T}') = (R^{r'}, \tilde{S}^{1/r'}, \tilde{T}^{1/r'})$$
         
     - $\mathsf{Groth_2.Verify}(pp,\mathit{pk},\sigma,M):$  check
     
-        ```math
-        e(\tilde{S},R) = e(\tilde{Y},G)\cdot e(\tilde{G},\mathit{pk}), e(\tilde{T},R) = e(\tilde{Y},\mathit{pk})\cdot e(M,G)
-        ```
+        $$e(\tilde{S},R) = e(\tilde{Y},G)\cdot e(\tilde{G},\mathit{pk}), e(\tilde{T},R) = e(\tilde{Y},\mathit{pk})\cdot e(M,G)$$
     
 
 ## Bobolzらの構成
@@ -71,16 +61,14 @@
         - the blinded list signature $(R_j,\tilde{S}_j,\tilde{T}_j') := (R_j, \tilde{S}_j, \tilde{T}_j^{1/\delta})$ on $\mathit{ipk}_j$ under the verifier’s public key $\mathit{vpk}$
     - Schnorr-styleのproof $\pi$を計算する
     
-        ```math
-        \begin{align*}
+        $$\begin{align*}
         \pi\stackrel{R}{\leftarrow} \mathrm{NIZK}[(\alpha, \beta, \gamma, \delta, \{m_i\}_{i \notin D}):\\
         \mathsf{Groth_1} \text{ credential check: }& e(Y,\tilde{G}) = e(S', \tilde{R})^{\alpha} \cdot e(G, \mathit{ipk}_j')^{-\gamma} \wedge\\
         \mathsf{Groth_1} \text{ credential check: }& e(\prod_{i \in D} h_i^{m_i}, \tilde{G})^{-1} = e(Y,\mathit{ipk}_j')^\gamma \cdot e(T',\tilde{R})^{-\beta} \cdot e(\prod_{i \notin D} h_i^{m_i}, \tilde{G}) \wedge\\
         \mathsf{Groth_2} \text{ list check: }& e(R_j,\tilde{S}_j) \cdot e(G,\tilde{Y})^{-1} \cdot e(\mathit{vpk}, \tilde{G})^{-1} = 1_{\mathbb{G}_{T}} \wedge\\
         \mathsf{Groth_2} \text{ list check: }& e(\mathit{vpk}, \tilde{Y})^{-1}  =  e(G,\mathit{ipk}_j')^\gamma \cdot e(R_j,\tilde{T}'_j)^{-\delta} \wedge\\
         \text{Attribute check: }& \phi(M) = 1](\mathit{list},\phi,\mathsf{ctx})
-        \end{align*}
-        ```
+        \end{align*}$$
     
     - return $\mathit{pt} = ((\tilde{R}, S', T'), \mathit{ipk}_j', (R_j, \tilde{S}_j, \tilde{T}_j'), \pi)$
 - $\mathsf{Verify}(\mathit{pt},\mathit{list},\phi):$ Return 1 if and only if $\mathit{pt}$ verifies correctly. Otherwise, return 0.
