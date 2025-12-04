@@ -19,6 +19,10 @@ Licensed under either of
     - [筆者らの実装](https://github.com/octaviopk9/indocrypt_protego/tree/main)
 
 - Bobolzらの方式を元にShigeo1042らがBBS署名に適用した方式
+    - Shigeo1042らが提案した方式
+    - BobolzらのGroth15署名のIssuer-Hidingの方式を応用
+    - [issuer-hiding_shigeo](./issuer-hiding_shigeo/): Shigeo1042のRustでの実装
+    - BBS署名部分は[zkryptium](https://github.com/Cybersecurity-LINKS/zkryptium.git)の実装を利用（[bbs](./bbs/)）
 
 - Hidden Issuer Anonymous Credential
     - Boskらが提案したPS署名のIssuer-Hidingの方式
@@ -33,3 +37,5 @@ Licensed under either of
     - Katzらが提案したBBS署名のIssuer-Hidingの方式
     - SandersらのPS署名のIssuer-Hidingの方式を応用
     - [論文(e-print)](https://eprint.iacr.org/2025/2080)
+    - [issuer-hiding_katz](./issuer-hiding_katz/): Shigeo1042のRustでの実装（Issuer-Hiding部分は論文を見て1から実装）
+    - BBS署名部分は[zkryptium](https://github.com/Cybersecurity-LINKS/zkryptium.git)の実装を利用（[bbs](./bbs/)）
