@@ -22,7 +22,7 @@ Licensed under either of
     - Shigeo1042らが提案した方式
     - BobolzらのGroth15署名のIssuer-Hidingの方式を応用
     - [issuer-hiding_shigeo](./issuer-hiding_shigeo/): Shigeo1042のRustでの実装
-    - BBS署名部分は[zkryptium](https://github.com/Cybersecurity-LINKS/zkryptium.git)の実装を利用（[bbs](./bbs/)）
+    - BBS署名部分は[mybbs](./bbs/)にShigeo1042がベンチマーク用に実装
 
 - Hidden Issuer Anonymous Credential
     - Boskらが提案したPS署名のIssuer-Hidingの方式
@@ -38,4 +38,4 @@ Licensed under either of
     - SandersらのPS署名のIssuer-Hidingの方式を応用
     - [論文(e-print)](https://eprint.iacr.org/2025/2080)
     - [issuer-hiding_katz](./issuer-hiding_katz/): Shigeo1042のRustでの実装（Issuer-Hiding部分は論文を見て1から実装）
-    - BBS署名部分は[zkryptium](https://github.com/Cybersecurity-LINKS/zkryptium.git)の実装を利用（[bbs](./bbs/)）
+    - BBS署名部分は[mybbs](./bbs/)にShigeo1042がベンチマーク用に実装
