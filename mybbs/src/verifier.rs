@@ -8,10 +8,16 @@ use crate::bbs;
 
 pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PublicParameters{
+    pub gbar1: G1Affine,
+    pub gbar2: G2Affine,
+}
+
 #[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PublicKey(pub G1Affine, pub G2Affine);
 
-#[derive(Clone, PartialEq, Eq, Debug,  CanonicalSerialize)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 #[allow(non_snake_case)]
 pub struct KeyPair {
     pub secret_key: bbs::SecretKey,
@@ -24,12 +30,22 @@ pub struct Signature {
     pub e: Fr,       // e \stackrel{\$}{\leftarrow} Z_p^*
 }
 
-pub fn par_gen() -> bbs::PublicParameters{
-    let pp = bbs::par_gen();
+pub fn par_gen() -> PublicParameters{
+    let dst1 = b"BBS-SIG-GENERATOR-DST-V1";
+    let dst2 = b"BBS-SIG-GENERATOR-DST-V2";
+    let gbar1_bytes = "Issuer-Hiding BBS Make to gbar1".to_string().into_bytes();
+    let gbar2_bytes = "Issuer-Hiding BBS Make to gbar2".to_string().into_bytes();
+    let gbar1 = G1Affine::from(bbs::hash_to_g1(&gbar1_bytes[..], dst1));
+    let gbar2 = G2Affine::from(bbs::hash_to_g2(&gbar2_bytes[..], dst2));
+
+    let pp = PublicParameters{
+        gbar1,  
+        gbar2,
+    };
     return pp
 }
 
-pub fn key_gen(pp: &bbs::PublicParameters) -> KeyPair{
+pub fn key_gen(pp: &PublicParameters) -> KeyPair{
     // sk \stackrel{\$}{\leftarrow} Z_p^*
     let mut rng = ark_std::test_rng();
     let sk_element = Fr::rand(&mut rng);
@@ -55,7 +71,7 @@ pub fn key_gen(pp: &bbs::PublicParameters) -> KeyPair{
     return keypair
 }
 
-pub fn sign(pp: &bbs::PublicParameters, sk: &bbs::SecretKey, messages: &G2Affine) -> Signature{
+pub fn sign(pp: &PublicParameters, sk: &bbs::SecretKey, messages: &G2Affine) -> Signature{
     let mut rng = ark_std::test_rng();
     // e \stackrel{\$}{\leftarrow} Z_p^*
     let e = Fr::rand(&mut rng);
@@ -73,7 +89,7 @@ pub fn sign(pp: &bbs::PublicParameters, sk: &bbs::SecretKey, messages: &G2Affine
     return signature
 }
 
-pub fn verify(pp: &bbs::PublicParameters, pk: &PublicKey, message: &G2Affine, signature: &Signature) -> bool{
+pub fn verify(pp: &PublicParameters, pk: &PublicKey, message: &G2Affine, signature: &Signature) -> bool{
 
     // verify e(gbar1^e * vpk, a) = e(gbar1, gbar2 * M)
     let pk_1: G1Affine = pk.0;
@@ -101,7 +117,8 @@ mod tests {
     fn it_works(){
         use crate::issuer;
         let pp = super::par_gen();
-        let issuerkeypair = issuer::key_gen(&pp);
+        let pp_issuer = issuer::par_gen();
+        let issuerkeypair = issuer::key_gen(&pp_issuer);
         let verifierkeypair = super::key_gen(&pp);
         let signature = super::sign(&pp, &verifierkeypair.secret_key, &issuerkeypair.public_key.0);
         let verify_result = super::verify(&pp, &verifierkeypair.public_key, &issuerkeypair.public_key.0, &signature);

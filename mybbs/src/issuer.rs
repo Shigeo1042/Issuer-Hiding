@@ -8,10 +8,18 @@ use crate::bbs;
 
 pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 
-#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PublicParameters{
+    pub g1: G1Affine,
+    pub g2: G2Affine,
+    pub h_seed: &'static str,
+    pub h_dst: &'static [u8; 31],
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicKey(pub G2Affine);
 
-#[derive(Clone, PartialEq, Eq, Debug,  CanonicalSerialize)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 #[allow(non_snake_case)]
 pub struct KeyPair {
     pub secret_key: bbs::SecretKey,
@@ -24,12 +32,26 @@ pub struct Signature {
     pub e: Fr,       // e \stackrel{\$}{\leftarrow} Z_p^*
 }
 
-pub fn par_gen() -> bbs::PublicParameters{
-    let pp = bbs::par_gen();
+pub fn par_gen() -> PublicParameters{
+    let g1_hex = "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb";
+    let g2_hex = "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8";
+    let g1_bytes = hex::decode(g1_hex).unwrap();
+    let g2_bytes = hex::decode(g2_hex).unwrap();
+    let g1 = G1Affine::deserialize_compressed(&g1_bytes[..]).unwrap();
+    let g2 = G2Affine::deserialize_compressed(&g2_bytes[..]).unwrap();
+    
+    let h_seed = "MESSAGE_GENERATOR_SEED_";
+    let h_dst = b"BLS12381G1_XMD:SHA-256_SSWU_RO_";
+    let pp = PublicParameters{
+        g1,
+        g2,
+        h_seed,
+        h_dst,
+    };
     return pp
 }
 
-pub fn key_gen(pp: &bbs::PublicParameters) -> KeyPair{
+pub fn key_gen(pp: &PublicParameters) -> KeyPair{
     // sk \stackrel{\$}{\leftarrow} Z_p^*
     let mut rng = ark_std::test_rng();
     let sk_element = Fr::rand(&mut rng);
@@ -52,18 +74,16 @@ pub fn key_gen(pp: &bbs::PublicParameters) -> KeyPair{
     return keypair
 }
 
-pub fn sign(pp: &bbs::PublicParameters, sk: &bbs::SecretKey, messages: &Vec<Fr>) -> Signature{
+pub fn sign(pp: &PublicParameters, sk: &bbs::SecretKey, messages: &Vec<Fr>) -> Signature{
     let mut rng = ark_std::test_rng();
     // e \stackrel{\$}{\leftarrow} Z_p^*
     let e = Fr::rand(&mut rng);
 
-    let dst = b"BLS12381G1_XMD:SHA-256_SSWU_RO_";
-
     let message_len = messages.len();
     // compute h_i
     let h_generators : Vec<G1Affine> = (0..message_len).map(|i| {
-            let seed = format!("MESSAGE_GENERATOR_SEED_{}", i);
-            bbs::hash_to_g1(seed.as_bytes(), dst)
+            let seed = format!("{}{}", pp.h_seed, i);
+            bbs::hash_to_g1(seed.as_bytes(), pp.h_dst)
         })
         .collect();
 
@@ -89,14 +109,12 @@ pub fn sign(pp: &bbs::PublicParameters, sk: &bbs::SecretKey, messages: &Vec<Fr>)
     return signature
 }
 
-pub fn verify(pp: &bbs::PublicParameters, pk: &PublicKey, messages: &Vec<Fr>, signature: &Signature) -> bool{
+pub fn verify(pp: &PublicParameters, pk: &PublicKey, messages: &Vec<Fr>, signature: &Signature) -> bool{
     let message_len = messages.len();
 
-    let dst = b"BLS12381G1_XMD:SHA-256_SSWU_RO_";
-
     let h_generators : Vec<G1Affine> = (0..message_len).map(|i| {
-            let seed = format!("MESSAGE_GENERATOR_SEED_{}", i);
-            bbs::hash_to_g1(seed.as_bytes(), dst)
+            let seed = format!("{}{}", pp.h_seed, i);
+            bbs::hash_to_g1(seed.as_bytes(), pp.h_dst)
         })
         .collect();
 
