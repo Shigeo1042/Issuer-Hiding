@@ -3,6 +3,7 @@ use ark_ff::Field;
 use ark_ec::pairing::Pairing;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{fmt::Debug, UniformRand, vec::Vec};
+use rand::thread_rng;
 
 use crate::bbs;
 
@@ -53,7 +54,7 @@ pub fn par_gen() -> PublicParameters{
 
 pub fn key_gen(pp: &PublicParameters) -> KeyPair{
     // sk \stackrel{\$}{\leftarrow} Z_p^*
-    let mut rng = ark_std::test_rng();
+    let mut rng = thread_rng();
     let sk_element = Fr::rand(&mut rng);
     let sk = bbs::SecretKey(
         sk_element
@@ -75,7 +76,7 @@ pub fn key_gen(pp: &PublicParameters) -> KeyPair{
 }
 
 pub fn sign(pp: &PublicParameters, sk: &bbs::SecretKey, messages: &Vec<Fr>) -> Signature{
-    let mut rng = ark_std::test_rng();
+    let mut rng = thread_rng();
     // e \stackrel{\$}{\leftarrow} Z_p^*
     let e = Fr::rand(&mut rng);
 
@@ -150,6 +151,7 @@ mod tests {
     fn it_works(){
         let pp = super::par_gen();
         let keypair = super::key_gen(&pp);
+        println!("Secret Key: {}", keypair.secret_key.0);
         let message_string = "Issuer-Hiding BBS Test Message";
         let message_fr = Fr::from(BigUint::from_bytes_be(message_string.as_bytes()));
         let messages = vec![message_fr];

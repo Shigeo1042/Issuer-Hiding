@@ -3,6 +3,7 @@ use ark_ff::Field;
 use ark_ec::pairing::Pairing;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{fmt::Debug, UniformRand, vec::Vec};
+use rand::thread_rng;
 
 use crate::bbs;
 use crate::issuer;
@@ -36,7 +37,7 @@ pub fn prove(
     message_list: &Vec<Fr>,
     reveal_index: &Vec<usize>,
 ) -> (PiKP, PiZKP){
-    let mut rng = ark_std::test_rng();
+    let mut rng = thread_rng();
     let r1 = Fr::rand(&mut rng);
     let r2 = Fr::rand(&mut rng);
     let r2_inv = r2.inverse().unwrap();
@@ -198,6 +199,7 @@ mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_ec::pairing::Pairing;
     use ark_std::{UniformRand, vec::Vec};
+    use rand::thread_rng;
     use crate::issuer;
 
     pub type Fr = <Bls12_381 as Pairing>::ScalarField;
@@ -206,7 +208,7 @@ mod tests {
     fn it_works() {
         // Test code can be added here
         let message_len = 10;
-        let mut rng = ark_std::test_rng();
+        let mut rng = thread_rng();
         let messages: Vec<Fr> = (0..message_len).map(|_| Fr::rand(&mut rng)).collect();
         let pp = issuer::par_gen();
         let keypair = issuer::key_gen(&pp);

@@ -3,6 +3,7 @@ use ark_ff::Field;
 use ark_ec::pairing::Pairing;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{fmt::Debug, UniformRand, vec::Vec};
+use rand::thread_rng;
 
 use crate::bbs;
 
@@ -47,7 +48,7 @@ pub fn par_gen() -> PublicParameters{
 
 pub fn key_gen(pp: &PublicParameters) -> KeyPair{
     // sk \stackrel{\$}{\leftarrow} Z_p^*
-    let mut rng = ark_std::test_rng();
+    let mut rng = thread_rng();
     let sk_element = Fr::rand(&mut rng);
     let sk = bbs::SecretKey(
         sk_element
@@ -72,7 +73,7 @@ pub fn key_gen(pp: &PublicParameters) -> KeyPair{
 }
 
 pub fn sign(pp: &PublicParameters, sk: &bbs::SecretKey, messages: &G2Affine) -> Signature{
-    let mut rng = ark_std::test_rng();
+    let mut rng = thread_rng();
     // e \stackrel{\$}{\leftarrow} Z_p^*
     let e = Fr::rand(&mut rng);
 
