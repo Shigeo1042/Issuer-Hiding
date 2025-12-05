@@ -16,3 +16,13 @@ rand = "0.8"
 serde = "1.0.228"
 sha2 = "0.10.9"
 mybbs = {path = "../mybbs"}
+criterion = "0.7.0"
+
+[lib]
+name = "issuer_hiding_shigeo"
+path = "src/lib.rs"
+
+[[bench]]
+name = "bench_mybbs-issuer-hiding"
+path = "benches/bench_issuer-hiding_shigeo.rs"
+harness = false

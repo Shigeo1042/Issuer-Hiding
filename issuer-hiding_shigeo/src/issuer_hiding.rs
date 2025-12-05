@@ -280,7 +280,7 @@ pub fn present(
     return (pikp, pizkp)
 }
 
-pub fn verify_presentation(
+pub fn verify_present(
     pp: &bbs::PublicParameters, 
     (vpk, _): &(verifier::PublicKey, Vec<TrustedIssuerCredential>), 
     pikp: &PiKP, 
@@ -426,7 +426,7 @@ mod tests {
         let reveal_index = vec![0, 3, 5, 6];
         let (pikp, pizkp) = present(&pp, &signature, &issuer_pk, &messages, &reveal_index, &list);
 
-        let is_valid_presentation = verify_presentation(&pp, &list, &pikp, &pizkp);
-        assert_eq!(is_valid_presentation, true);
+        let is_valid_present = verify_present(&pp, &list, &pikp, &pizkp);
+        assert_eq!(is_valid_present, true);
     }
 }
