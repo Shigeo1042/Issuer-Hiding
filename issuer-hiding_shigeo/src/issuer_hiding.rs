@@ -59,8 +59,7 @@ pub fn issuer_key_gen(pp: &bbs::PublicParameters) -> issuer::KeyPair{
     let pp_issuer = issuer::PublicParameters{
         g1: pp.g1,
         g2: pp.g2,
-        h_seed: pp.h_seed,
-        h_dst: pp.h_dst,
+        h_vec: pp.h_vec.clone(),
     };
     let keypair = issuer::key_gen(&pp_issuer);
     return keypair
@@ -70,8 +69,7 @@ pub fn issue(pp: &bbs::PublicParameters, isk: &bbs::SecretKey, messages: &Vec<Fr
     let pp_issuer = issuer::PublicParameters{
         g1: pp.g1,
         g2: pp.g2,
-        h_seed: pp.h_seed,
-        h_dst: pp.h_dst,
+        h_vec: pp.h_vec.clone(),
     };
     let signature = issuer::sign(&pp_issuer, isk, messages);
     return signature
@@ -81,8 +79,7 @@ pub fn verify(pp: &bbs::PublicParameters, ipk: &issuer::PublicKey, messages: &Ve
     let pp_issuer = issuer::PublicParameters{
         g1: pp.g1,
         g2: pp.g2,
-        h_seed: pp.h_seed,
-        h_dst: pp.h_dst,
+        h_vec: pp.h_vec.clone(),
     };
     let is_valid = issuer::verify(&pp_issuer, ipk, messages, sig);
     return is_valid
@@ -145,11 +142,7 @@ pub fn present(
     let message_len = message_list.len();
 
     let mut rng = thread_rng();
-    let h_generators : Vec<G1Affine> = (0..message_len).map(|i| {
-            let seed = format!("{}{}", pp.h_seed, i);
-            bbs::hash_to_g1(seed.as_bytes(), pp.h_dst)
-        })
-        .collect();
+    let h_generators : Vec<G1Affine> = pp.h_vec[0..message_len].to_vec();
     
     let list_len = list.len();
     let mut verifier_sig = list[0].cred.clone();
@@ -284,11 +277,7 @@ pub fn verify_present(
 ) -> bool{
     let message_len = pikp.len;
 
-    let h_generators : Vec<G1Affine> = (0..message_len).map(|i| {
-            let seed = format!("{}{}", pp.h_seed, i);
-            bbs::hash_to_g1(seed.as_bytes(), pp.h_dst)
-        })
-        .collect();
+    let h_generators : Vec<G1Affine> = pp.h_vec[0..message_len].to_vec();
     let mut close_index: Vec<usize> = Vec::new();
     for i in 0..message_len{
         if !pikp.open.contains(&i){

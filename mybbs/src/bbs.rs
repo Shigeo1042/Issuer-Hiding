@@ -12,8 +12,7 @@ use crate::verifier;
 pub struct PublicParameters {
     pub g1: G1Affine,
     pub g2: G2Affine,
-    pub h_seed: &'static str,
-    pub h_dst: &'static [u8; 31],
+    pub h_vec: Vec<G1Affine>,
     pub gbar1: G1Affine,  
     pub gbar2: G2Affine,
 
@@ -28,8 +27,7 @@ pub fn par_gen() -> PublicParameters{
     let pp = PublicParameters{
         g1: pp_issuer.g1,
         g2: pp_issuer.g2,
-        h_seed: pp_issuer.h_seed,
-        h_dst: pp_issuer.h_dst,
+        h_vec: pp_issuer.h_vec,
         gbar1: pp_verifier.gbar1,
         gbar2: pp_verifier.gbar2,
     };

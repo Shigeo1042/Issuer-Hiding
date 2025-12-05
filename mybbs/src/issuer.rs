@@ -13,8 +13,7 @@ pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 pub struct PublicParameters{
     pub g1: G1Affine,
     pub g2: G2Affine,
-    pub h_seed: &'static str,
-    pub h_dst: &'static [u8; 31],
+    pub h_vec: Vec<G1Affine>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -43,11 +42,15 @@ pub fn par_gen() -> PublicParameters{
     
     let h_seed = "MESSAGE_GENERATOR_SEED_";
     let h_dst = b"BLS12381G1_XMD:SHA-256_SSWU_RO_";
+    let h_vec:Vec<G1Affine> = (0..50).map(|i| {
+            let seed = format!("{}{}", h_seed, i);
+            bbs::hash_to_g1(seed.as_bytes(), h_dst)
+        })
+        .collect();
     let pp = PublicParameters{
         g1,
         g2,
-        h_seed,
-        h_dst,
+        h_vec,
     };
     return pp
 }
@@ -82,11 +85,7 @@ pub fn sign(pp: &PublicParameters, sk: &bbs::SecretKey, messages: &Vec<Fr>) -> S
 
     let message_len = messages.len();
     // compute h_i
-    let h_generators : Vec<G1Affine> = (0..message_len).map(|i| {
-            let seed = format!("{}{}", pp.h_seed, i);
-            bbs::hash_to_g1(seed.as_bytes(), pp.h_dst)
-        })
-        .collect();
+    let h_generators : Vec<G1Affine> = pp.h_vec[0..message_len].to_vec();
 
     // compute \prod_{i=1}^{n} h_i^m_i
     let mut m_product = G1Projective::from(pp.g1);
@@ -113,11 +112,7 @@ pub fn sign(pp: &PublicParameters, sk: &bbs::SecretKey, messages: &Vec<Fr>) -> S
 pub fn verify(pp: &PublicParameters, pk: &PublicKey, messages: &Vec<Fr>, signature: &Signature) -> bool{
     let message_len = messages.len();
 
-    let h_generators : Vec<G1Affine> = (0..message_len).map(|i| {
-            let seed = format!("{}{}", pp.h_seed, i);
-            bbs::hash_to_g1(seed.as_bytes(), pp.h_dst)
-        })
-        .collect();
+    let h_generators : Vec<G1Affine> = pp.h_vec[0..message_len].to_vec();
 
     // compute \prod_{i=1}^{n} h_i^m_i
     let mut m_product = G1Projective::from(pp.g1);

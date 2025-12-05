@@ -44,11 +44,7 @@ pub fn prove(
 
     let message_len = message_list.len();
 
-    let h_generators : Vec<G1Affine> = (0..message_len).map(|i| {
-            let seed = format!("{}{}", pp.h_seed, i);
-            bbs::hash_to_g1(seed.as_bytes(), pp.h_dst)
-        })
-        .collect();
+    let h_generators : Vec<G1Affine> = pp.h_vec[0..message_len].to_vec();
 
     let mut d_element = G1Projective::from(pp.g1);
     let mut open_messages = Vec::new();
@@ -150,11 +146,7 @@ pub fn verify_proof(
         return false
     }
 
-    let h_generators : Vec<G1Affine> = (0..pikp.len).map(|i| {
-            let seed = format!("{}{}", pp.h_seed, i);
-            bbs::hash_to_g1(seed.as_bytes(), pp.h_dst)
-        })
-        .collect();
+    let h_generators : Vec<G1Affine> = pp.h_vec[0..pikp.len].to_vec();
 
     let lhs_u1 = G1Affine::from((pikp.d * pizkp.s) + (pikp.a_bar * pizkp.t) + (pikp.b_bar * (-pikp.c)));
     let rhs_u1 = pikp.u_1;
