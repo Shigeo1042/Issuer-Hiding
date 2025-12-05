@@ -131,15 +131,13 @@ pub fn verify(pp: &PublicParameters, pk: &PublicKey, messages: &Vec<Fr>, signatu
 
     // compute right side: e(g1 * \prod_{i=1}^{n} h_i^m_i, g2)
     let right_side = Bls12_381::pairing(G1Affine::from(m_product), pp.g2);
-
-    let mut bool = false;
-    if left_side == right_side {
-        bool = true;
-        println!("Verification succeeded");
+    
+    if left_side != right_side {
+        println!("Verification Failed!");
+        return false;
     } else {
-        println!("Verification failed");
     }
-    return bool
+    return true
 }
 
 #[cfg(test)]

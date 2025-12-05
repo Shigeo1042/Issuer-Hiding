@@ -184,10 +184,6 @@ pub fn present(
     let abar = G1Affine::from(cred.a * (r_1 * r_2_inv * r_inv));
     let bbar = G1Affine::from((d_affine * r_1) + (abar * (-cred.e * r)));
 
-    if Bls12_381::pairing(abar, ipk_rand) != Bls12_381::pairing(bbar, pp.g2) {
-        println!("Credential signature verification failed during presentation");
-    }
-
     let d2_affine = G2Affine::from((pp.gbar2 + ipk.0) * r_3_inv);
     let abar2 = G2Affine::from(verifier_sig.a * (r * r_3_inv));
     let bbar2 = G2Affine::from((d2_affine * r) + (abar2 * (-verifier_sig.e)));
