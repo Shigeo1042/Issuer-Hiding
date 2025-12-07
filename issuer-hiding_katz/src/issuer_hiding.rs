@@ -1,9 +1,7 @@
 use ark_bls12_381::{Bls12_381, G1Affine, G1Projective, G2Affine};
 use ark_ec::AffineRepr;
-// use ark_ff::{Field, PrimeField};
 use ark_ff::Field;
 use ark_ec::pairing::Pairing;
-// use ark_std::{fmt::Debug, vec::Vec, UniformRand};
 use ark_std::{fmt::Debug, UniformRand, vec::Vec};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use rand::thread_rng;
