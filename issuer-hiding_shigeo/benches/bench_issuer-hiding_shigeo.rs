@@ -8,8 +8,8 @@ pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 use issuer_hiding_shigeo::issuer_hiding as ih;
 
 fn myih_benchmark(c: &mut Criterion) {
-    let message_len = [5, 10, 15, 20];
-    let issuer_num = [5, 10, 50];
+    let message_len = [5, 10, 15, 20, 25, 30, 40, 50];
+    let issuer_num = [5, 10, 50, 100, 500, 1000];
     let mut rng = thread_rng();
     let pp = ih::par_gen();
 
@@ -221,8 +221,6 @@ fn myih_benchmark(c: &mut Criterion) {
             }
         }
     }
-
-    // let message_len_temp = 1000;
 }
 
 criterion_group!(benches, myih_benchmark);
