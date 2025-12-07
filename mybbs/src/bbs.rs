@@ -1,6 +1,7 @@
 use ark_bls12_381::{Bls12_381, G1Affine, G1Projective, G2Affine, G2Projective, g1::Config as G1Config, g2::Config as G2Config};
 use ark_ec::{hashing::{curve_maps::wb::WBMap, map_to_curve_hasher::MapToCurveBasedHasher, HashToCurve},pairing::Pairing};
 use ark_ff::field_hashers::{DefaultFieldHasher, HashToField};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use sha2::Sha256;
 
 pub type Fr = <Bls12_381 as Pairing>::ScalarField;
@@ -8,7 +9,7 @@ pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 use crate::issuer;
 use crate::verifier;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PublicParameters {
     pub g1: G1Affine,
     pub g2: G2Affine,
@@ -34,7 +35,7 @@ pub fn par_gen() -> PublicParameters{
     return pp
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct SecretKey(pub Fr);
 
 pub fn hash_to_fr(input: &[u8], dst: &[u8]) -> Fr {
@@ -60,13 +61,13 @@ pub fn hash_to_g2(input: &[u8], dst: &[u8]) -> G2Affine {
     return hashpoint;
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::par_gen;
+#[cfg(test)]
+mod tests {
+    use super::par_gen;
 
-//     #[test]
-//     fn it_works() {
-//         let pp = par_gen();
-//         println!("{:?}", pp);
-//     }
-// }
+    #[test]
+    fn it_works() {
+        let pp = par_gen();
+        println!("{:?}", pp);
+    }
+}

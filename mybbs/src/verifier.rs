@@ -9,7 +9,7 @@ use crate::bbs;
 
 pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PublicParameters{
     pub gbar1: G1Affine,
     pub gbar2: G2Affine,
@@ -18,8 +18,7 @@ pub struct PublicParameters{
 #[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PublicKey(pub G1Affine, pub G2Affine);
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-#[allow(non_snake_case)]
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct KeyPair {
     pub secret_key: bbs::SecretKey,
     pub public_key: PublicKey,
