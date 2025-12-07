@@ -4,3 +4,25 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ark-bls12-381 = "0.5.0"
+ark-ec = "0.5.0"
+ark-ff = "0.5.0"
+ark-serialize = "0.5.0"
+ark-std = "0.5.0"
+elliptic-curve = "0.13.8"
+hex = "0.4.3"
+num-bigint = "0.4.6"
+rand = "0.8"
+serde = "1.0.228"
+sha2 = "0.10.9"
+mybbs = {path = "../mybbs"}
+criterion = "0.7.0"
+
+[lib]
+name = "issuer_hiding_katz"
+path = "src/lib.rs"
+
+[[bench]]
+name = "bench_katz-issuer-hiding"
+path = "benches/bench_issuer-hiding_katz.rs"
+harness = false
