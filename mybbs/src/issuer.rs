@@ -129,7 +129,6 @@ pub fn verify(pp: &PublicParameters, pk: &PublicKey, messages: &Vec<Fr>, signatu
     if left_side != right_side {
         println!("Verification Failed!");
         return false;
-    } else {
     }
     return true
 }

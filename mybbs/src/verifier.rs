@@ -93,21 +93,17 @@ pub fn verify(pp: &PublicParameters, pk: &PublicKey, message: &G2Affine, signatu
 
     // verify e(gbar1^e * vpk, a) = e(gbar1, gbar2 * M)
     let pk_1: G1Affine = pk.0;
-    let mut bool = false;
     let left_p = G1Affine::from(pp.gbar1 * signature.e + pk_1);
     let left_q = signature.a;
     let right_p = pp.gbar1;
     let right_q = G2Affine::from(pp.gbar2 + message);
     let left = Bls12_381::pairing(left_p, left_q);
     let right = Bls12_381::pairing(right_p, right_q);
-    if left == right {
-        bool = true;
-        println!("Verification succeeded");
-    } else {
+    if left != right {
         println!("Verification failed");
+        return false;
     }
-
-    return bool
+    return true;
 }
 
 #[cfg(test)]
