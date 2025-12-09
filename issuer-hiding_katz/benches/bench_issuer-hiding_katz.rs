@@ -8,7 +8,7 @@ pub type Fr = <Bls12_381 as Pairing>::ScalarField;
 use issuer_hiding_katz::issuer_hiding as ih;
 
 fn katz_ih_benchmark_pc(c: &mut Criterion) {
-    let message_len = [5, 10, 15, 20, 25, 30, 40, 50];
+    let message_len = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
     let issuer_num = [5, 10, 50, 100, 500, 1000];
     let mut rng = thread_rng();
     let pp = ih::par_gen();
@@ -143,7 +143,7 @@ fn katz_ih_benchmark_pc(c: &mut Criterion) {
 }
 
 fn katz_ih_benchmark_android(c: &mut Criterion) {
-    let message_len = [5, 10, 15, 20, 25, 30, 40, 50];
+    let message_len = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
     let issuer_num = [5, 10, 50, 100, 500, 1000];
     let mut rng = thread_rng();
     let pp = ih::par_gen();
