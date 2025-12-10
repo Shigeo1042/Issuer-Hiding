@@ -4,10 +4,17 @@ use ark_ec::pairing::Pairing;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{fmt::Debug, UniformRand};
 use rand;
-
 use crate::groth;
-// use schnorr_pok::compute_random_oracle_challenge;
+
 pub type Fr = <Bls12_381 as Pairing>::ScalarField;
+
+#[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
+pub struct PublicParameters {
+    //g1 \in G1, g2 \in G2, y1 \stackrel{\$}{\leftarrow} G1, y2 \stackrel{\$}{\leftarrow} G2
+    pub g1: G1Affine,
+    pub g2: G2Affine,
+    pub y2: G2Affine,
+}
 
 #[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PublicKey(pub G1Affine);
@@ -25,12 +32,26 @@ pub struct Signature {
     pub t2: G2Affine // t1 = (y1^sk * message)^(1/r)
 }
 
-pub fn par_gen() -> groth::PublicParameters{
-    let pp = groth::par_gen();
-    return pp
+pub fn par_gen() -> PublicParameters{
+    let g1_hex = "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb";
+    let g2_hex = "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8";
+    let g1_bytes = hex::decode(g1_hex).unwrap();
+    let g2_bytes = hex::decode(g2_hex).unwrap();
+    let g1 = G1Affine::deserialize_compressed(&g1_bytes[..]).unwrap();
+    let g2 = G2Affine::deserialize_compressed(&g2_bytes[..]).unwrap();
+
+    let dst2 = b"GROTH-SIG-GENERATOR-DST-V2";
+    let y2_bytes = "Jan Bobolz, Fabian Eidens, Stephan Krenn, Sebastian Ramacher, and Kai Samelin makes Y2".to_string().into_bytes();
+    let y2 = G2Affine::from(groth::hash_to_g2(&y2_bytes[..], dst2));
+    let pp = PublicParameters{
+        g1,
+        g2,
+        y2: G2Affine::from(y2),
+    };
+    return pp;
 }
 
-pub fn key_gen(pp: &groth::PublicParameters) -> KeyPair{
+pub fn key_gen(pp: &PublicParameters) -> KeyPair{
     // sk \stackrel{\$}{\leftarrow} Z_p^*
     // let sk_bytes = self.0.to_bytes();
     let mut rng = ark_std::rand::thread_rng();
@@ -55,7 +76,7 @@ pub fn key_gen(pp: &groth::PublicParameters) -> KeyPair{
     return keypair
 }
 
-pub fn sign(pp: &groth::PublicParameters, sk: &groth::SecretKey, message: &G2Affine) -> Signature{
+pub fn sign(pp: &PublicParameters, sk: &groth::SecretKey, message: &G2Affine) -> Signature{
     let mut rng = rand::thread_rng();
     let r = Fr::rand(&mut rng);
     let r_inverse = r.inverse().unwrap();
@@ -96,9 +117,7 @@ pub fn rand_sign(sig: &Signature) -> Signature{
     return newsig
 }
 
-pub fn verify(pp: &groth::PublicParameters, pk: &PublicKey, sig: &Signature, message: &G2Affine) -> bool{
-    let mut boo1: bool = false;
-    let mut bool2: bool = false;
+pub fn verify(pp: &PublicParameters, pk: &PublicKey, sig: &Signature, message: &G2Affine) -> bool{
     let r1 = sig.r1;
     let s2 = sig.s2;
     let t2 = sig.t2;
@@ -106,30 +125,27 @@ pub fn verify(pp: &groth::PublicParameters, pk: &PublicKey, sig: &Signature, mes
     let g2 = pp.g2;
     let y2 = pp.y2;
 
-    if Bls12_381::pairing(r1,s2) == Bls12_381::pairing(g1,y2) + Bls12_381::pairing(pk.0,g2){
-        boo1 = true;
+    if Bls12_381::pairing(r1,s2) != Bls12_381::pairing(g1,y2) + Bls12_381::pairing(pk.0,g2){
+        println!("Groth2 First pairing check failed");
+        return false;
     }
-    if Bls12_381::pairing(r1,t2) == Bls12_381::pairing(pk.0,y2) + Bls12_381::pairing(g1,message){
-        bool2 = true;
+    if Bls12_381::pairing(r1,t2) != Bls12_381::pairing(pk.0,y2) + Bls12_381::pairing(g1,message){
+        println!("Groth2 Second pairing check failed");
+        return false;
     }
 
-    return boo1 && bool2
+    return true;
 }
 
 #[cfg(test)]
 mod tests {
-    use ark_bls12_381::{Fr, G2Affine};
-    use ark_std::UniformRand;
-    use num_bigint::BigUint;
+    use super::*;
     #[test]
     fn it_works() {
         let pp = super::par_gen();
         let keypair = super::key_gen(&pp);
         let message_string = "It's a Bobolz et.al. Issuer-Hiding";
-        let message_fr = Fr::from(BigUint::from_bytes_be(message_string.as_bytes()));
-        let mut rng = ark_std::rand::thread_rng();
-        let h1 = G2Affine::rand(&mut rng);
-        let message = G2Affine::from(h1 * message_fr);
+        let message = groth::hash_to_g2(message_string.as_bytes(), b"TEST-DST");
         let sig = super::sign(&pp, &keypair.secret_key, &message);
         let newsig = super::rand_sign(&sig);
         let result = super::verify(&pp, &keypair.public_key, &newsig, &message);
