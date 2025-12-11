@@ -22,15 +22,10 @@ pub struct PiKP{
     pub a_bar1: G1Affine,
     pub b_bar1: G1Affine,
     pub d_1: G1Affine,
-    pub u_1: G1Affine,
-    pub u_2: G1Affine,
     pub ipk_rand: G2Affine,
     pub a_bar2: G2Affine,
     pub b_bar2: G2Affine,
     pub d_2: G2Affine,
-    pub u_3: G2Affine,
-    pub u_4: G2Affine,
-    pub c: Fr,
     pub open: Vec<usize>,
     pub len: usize,
     pub message_list: Vec<Fr>,
@@ -45,7 +40,7 @@ pub struct PiZKP{
     pub z1: Fr,
     pub z2: Fr,
     pub v1: Vec<Fr>,
-    pub v2: Fr
+    pub c: Fr,
 }
 
 pub fn par_gen() -> bbs::PublicParameters{
@@ -186,7 +181,6 @@ pub fn present(
     let gamma1 = Fr::rand(&mut rng);
     let gamma2 = Fr::rand(&mut rng);
     let delta1_vec = (0..close_len).map(|_| Fr::rand(&mut rng)).collect::<Vec<Fr>>();
-    let delta2 = Fr::rand(&mut rng);
 
     let u1 = G1Affine::from((d_affine * alpha1) + (abar * beta1));
     let mut u2_element = d_affine * gamma1;
@@ -195,7 +189,7 @@ pub fn present(
     }
     let u2 = G1Affine::from(u2_element);
     let u3 = G2Affine::from((d2_affine * alpha2) + (abar2 * beta2));
-    let u4 = G2Affine::from((d2_affine * gamma2) + (pp.gbar2 * delta2));
+    let u4 = G2Affine::from((d2_affine * gamma2) + (pp.gbar2 * (-alpha2)));
     let dst = b"MY_CHALLENGE_GENERATOR_DST_Issuer_Hiding_V1";
     let c_inputs1 = vec![
         abar,
@@ -228,15 +222,10 @@ pub fn present(
         a_bar1: abar,
         b_bar1: bbar,
         d_1: d_affine,
-        u_1: u1,
-        u_2: u2,
         ipk_rand: ipk_rand,
         a_bar2: abar2,
         b_bar2: bbar2,
         d_2: d2_affine,
-        u_3: u3,
-        u_4: u4,
-        c: c,
         open: reveal_index.clone(),
         len: message_len,
         message_list: open_messages,
@@ -253,7 +242,6 @@ pub fn present(
         let v1 = delta1_vec[i] - c * message_list[close_index[i]];
         v1_vec.push(v1);
     }
-    let v2 = delta2 - c * r;
     let pizkp = PiZKP{
         s1: s1,
         s2: s2,
@@ -262,7 +250,7 @@ pub fn present(
         z1: z1,
         z2: z2,
         v1: v1_vec,
-        v2: v2,
+        c: c,
     };
     return (pikp, pizkp)
 }
@@ -284,21 +272,35 @@ pub fn verify_present(
     }
     let close_len = close_index.len();
 
+    let u1 = G1Affine::from((pikp.d_1 * pizkp.s1) + (pikp.a_bar1 * pizkp.t1) + (pikp.b_bar1 * (-pizkp.c)));
+    let mut u2_element = pikp.d_1 * pizkp.z1 + pp.g1 * (-pizkp.c);
+    for i in 0..pikp.open.len(){
+        let h_i = h_generators[pikp.open[i]];
+        u2_element += (h_i * (pikp.message_list[i])) * (-pizkp.c);
+    }
+    for i in 0..close_len{
+        let h_i = h_generators[close_index[i]];
+        u2_element += h_i * (pizkp.v1[i]);
+    }
+    let u2 = G1Affine::from(u2_element);
+    let u3 = G2Affine::from((pikp.d_2 * pizkp.s2) + (pikp.a_bar2 * pizkp.t2) + (pikp.b_bar2 * (-pizkp.c)));
+    let u4 = G2Affine::from(pikp.d_2 * pizkp.z2 + pp.gbar2 * (-pizkp.s2) + pikp.ipk_rand * (-pizkp.c));
+
     let dst = b"MY_CHALLENGE_GENERATOR_DST_Issuer_Hiding_V1";
     let c_inputs1 = vec![
         pikp.a_bar1,
         pikp.b_bar1,
         pikp.d_1,
-        pikp.u_1,
-        pikp.u_2,
+        u1,
+        u2,
     ];
     let c_input2 = vec![
         pikp.ipk_rand,
         pikp.a_bar2,
         pikp.b_bar2,
         pikp.d_2,
-        pikp.u_3,
-        pikp.u_4,
+        u3,
+        u4,
     ];
     let mut c_inputs_buffer = Vec::new();
     for c_input in &c_inputs1{
@@ -312,47 +314,13 @@ pub fn verify_present(
     }
     let c = bbs::hash_to_fr(&c_inputs_buffer[..], dst);
 
-    if c != pikp.c{
+    if c != pizkp.c{
         println!("Challenge hash check failed");
         println!("Computed c: {:?}", c);
-        println!("Presented c: {:?}", pikp.c);
+        println!("Presented c: {:?}", pizkp.c);
         return false
     }
 
-    let lhs_u1 = G1Affine::from((pikp.d_1 * pizkp.s1) + (pikp.a_bar1 * pizkp.t1) + (pikp.b_bar1 * (-pikp.c)));
-    let rhs_u1 = pikp.u_1;
-    let mut lhs_u2_element = pikp.d_1 * pizkp.z1 + pp.g1 * (-pikp.c);
-    for i in 0..pikp.open.len(){
-        let h_i = h_generators[pikp.open[i]];
-        lhs_u2_element += (h_i * (pikp.message_list[i])) * (-pikp.c);
-    }
-    for i in 0..close_len{
-        let h_i = h_generators[close_index[i]];
-        lhs_u2_element += h_i * (pizkp.v1[i]);
-    }
-    let lhs_u2 = G1Affine::from(lhs_u2_element);
-    let rhs_u2 = pikp.u_2;
-    let lhs_u3 = G2Affine::from((pikp.d_2 * pizkp.s2) + (pikp.a_bar2 * pizkp.t2) + (pikp.b_bar2 * (-pikp.c)));
-    let rhs_u3 = pikp.u_3;
-    let lhs_u4 = G2Affine::from(pikp.d_2 * pizkp.z2 + pp.gbar2 * pizkp.v2 + pikp.ipk_rand * (-pikp.c));
-    let rhs_u4 = pikp.u_4;
-
-    if lhs_u1 != rhs_u1 {
-        println!("U1 check failed");
-        return false
-    }
-    if lhs_u2 != rhs_u2 {
-        println!("U2 check failed");
-        return false
-    }
-    if lhs_u3 != rhs_u3 {
-        println!("U3 check failed");
-        return false
-    }
-    if lhs_u4 != rhs_u4 {
-        println!("U4 check failed");
-        return false
-    }
     if Bls12_381::pairing(pikp.a_bar1, pikp.ipk_rand) != Bls12_381::pairing(pikp.b_bar1, pp.g2) {
         println!("Pairing check 1 failed");
         return false
