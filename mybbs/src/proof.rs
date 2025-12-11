@@ -1,6 +1,6 @@
 use ark_bls12_381::{G1Affine, Bls12_381, G1Projective};
 use ark_ff::Field;
-use ark_ec::pairing::Pairing;
+use ark_ec::{pairing::Pairing, CurveGroup};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{fmt::Debug, UniformRand, vec::Vec};
 use rand::thread_rng;
@@ -15,9 +15,6 @@ pub struct PiKP{
     pub a_bar: G1Affine,
     pub b_bar: G1Affine,
     pub d: G1Affine,
-    pub u_1: G1Affine,
-    pub u_2: G1Affine,
-    pub c: Fr,
     pub open: Vec<usize>,
     pub len: usize,
     pub message_list: Vec<Fr>,
@@ -29,6 +26,7 @@ pub struct PiZKP{
     pub t: Fr,
     pub z: Fr,
     pub v: Vec<Fr>,
+    pub c: Fr,
 }
 
 pub fn prove(
@@ -57,9 +55,9 @@ pub fn prove(
             close_index.push(i);
         }
     }
-    let d_affine = G1Affine::from(d_element * r2_inv);
-    let abar = G1Affine::from((cred.a * r1) * r2_inv);
-    let bbar = G1Affine::from((d_affine * r1) + (abar * (-cred.e)));
+    d_element *= r2_inv;
+    let abar_pro = (cred.a * r1) * r2_inv;
+    let bbar_pro = (d_element * r1) + (abar_pro * (-cred.e));
 
     let close_len = close_index.len();
 
@@ -68,20 +66,20 @@ pub fn prove(
     let gamma = Fr::rand(&mut rng);
     let delta_vec : Vec<Fr> = (0..close_len).map(|_| Fr::rand(&mut rng)).collect();
 
-    let u1 = G1Affine::from((d_affine * alpha) + (abar * beta));
-    let mut u2_element = d_affine * gamma;
+    let u1_pro = (d_element * alpha) + (abar_pro * beta);
+    let mut u2_element = d_element * gamma;
     for i in 0..close_len{
         u2_element += h_generators[close_index[i]] * delta_vec[i];
     }
-    let u2 = G1Affine::from(u2_element);
     let dst = b"MY_CHALLENGE_GENERATOR_DST_V1";
-    let c_inputs = vec![
-        abar,
-        bbar,
-        d_affine,
-        u1,
-        u2,
+    let c_inputs_pro = vec![
+        abar_pro,
+        bbar_pro,
+        d_element,
+        u1_pro,
+        u2_element,
     ];
+    let c_inputs = G1Projective::normalize_batch(&c_inputs_pro);
     let mut buffer = Vec::new();
     for c_input in &c_inputs{
         c_input.serialize_compressed(&mut buffer).unwrap();
@@ -91,12 +89,9 @@ pub fn prove(
     }
     let c = bbs::hash_to_fr(&buffer[..], dst);
     let pikp = PiKP{
-        a_bar: abar,
-        b_bar: bbar,
-        d: d_affine,
-        u_1: u1,
-        u_2: u2,
-        c: c,
+        a_bar: c_inputs[0],
+        b_bar: c_inputs[1],
+        d: c_inputs[2],
         open: reveal_index.clone(),
         len: message_len,
         message_list: open_messages,
@@ -114,6 +109,7 @@ pub fn prove(
         t,
         z,
         v: v_vec,
+        c
     };
     (pikp, pizkp)
 }
@@ -124,34 +120,10 @@ pub fn verify_proof(
     pikp: &PiKP,
     pizkp: &PiZKP,
 ) -> bool{
-    let dst = b"MY_CHALLENGE_GENERATOR_DST_V1";
-    let c_inputs = vec![
-        pikp.a_bar,
-        pikp.b_bar,
-        pikp.d,
-        pikp.u_1,
-        pikp.u_2,
-    ];
-    let mut buffer = Vec::new();
-    for c_input in &c_inputs{
-        c_input.serialize_compressed(&mut buffer).unwrap();
-    }
-    for open_msg in &pikp.message_list{
-        open_msg.serialize_compressed(&mut buffer).unwrap();
-    }
-    let c_calculated = bbs::hash_to_fr(&buffer[..], dst);
-
-    if c_calculated != pikp.c{
-        println!("Challenge hash check failed");
-        return false
-    }
-
     let h_generators : Vec<G1Affine> = pp.h_vec[0..pikp.len].to_vec();
+    let dst = b"MY_CHALLENGE_GENERATOR_DST_V1";
 
-    let lhs_u1 = G1Affine::from((pikp.d * pizkp.s) + (pikp.a_bar * pizkp.t) + (pikp.b_bar * (-pikp.c)));
-    let rhs_u1 = pikp.u_1;
-
-    let mut lhs_u2_element = pikp.d * pizkp.z + pp.g1 * (-pikp.c);
+    let mut lhs_u2_element = pikp.d * pizkp.z + pp.g1 * (-pizkp.c);
     let close_len = pikp.len - pikp.open.len();
     let mut close_idx = Vec::new();
     for i in 0..pikp.len{
@@ -161,23 +133,40 @@ pub fn verify_proof(
     }
     for i in 0..pikp.open.len(){
         let h_i = h_generators[pikp.open[i]];
-        lhs_u2_element += (h_i * (pikp.message_list[i])) * (-pikp.c);
+        lhs_u2_element += (h_i * (pikp.message_list[i])) * (-pizkp.c);
     }
     for i in 0..close_len{
         let h_i = h_generators[close_idx[i]];
         lhs_u2_element += h_i * (pizkp.v[i]);
     }
-    let lhs_u2 = G1Affine::from(lhs_u2_element);
-    let rhs_u2 = pikp.u_2;
+    let u_12_pro = vec![
+        (pikp.d * pizkp.s) + (pikp.a_bar * pizkp.t) + (pikp.b_bar * (-pizkp.c)),
+        lhs_u2_element
+    ];
+    let u_12_affine = G1Projective::normalize_batch(&u_12_pro);
 
-    if lhs_u1 != rhs_u1 {
-        println!("U1 check failed");
+    let c_inputs = vec![
+        pikp.a_bar,
+        pikp.b_bar,
+        pikp.d
+    ];
+    let mut buffer = Vec::new();
+    for c_input in &c_inputs{
+        c_input.serialize_compressed(&mut buffer).unwrap();
+    }
+    for u_i in &u_12_affine{
+        u_i.serialize_compressed(&mut buffer).unwrap();
+    }
+    for open_msg in &pikp.message_list{
+        open_msg.serialize_compressed(&mut buffer).unwrap();
+    }
+    let c_calculated = bbs::hash_to_fr(&buffer[..], dst);
+
+    if c_calculated != pizkp.c{
+        println!("Challenge hash check failed");
         return false
     }
-    if lhs_u2 != rhs_u2 {
-        println!("U2 check failed");
-        return false
-    }
+
     if Bls12_381::pairing(pikp.a_bar, pk.0) != Bls12_381::pairing(pikp.b_bar, pp.g2) {
         println!("Pairing check failed");
         return false

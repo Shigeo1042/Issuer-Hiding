@@ -1,6 +1,6 @@
-use ark_bls12_381::{Bls12_381, G1Affine, G1Projective, G2Affine};
+use ark_bls12_381::{Bls12_381, G1Affine, G1Projective, G2Affine ,G2Projective};
 use ark_ff::Field;
-use ark_ec::pairing::Pairing;
+use ark_ec::{pairing::Pairing, CurveGroup};
 use ark_std::{fmt::Debug, UniformRand, vec::Vec};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use rand::thread_rng;
@@ -164,15 +164,15 @@ pub fn present(
             close_index.push(i);
         }
     }
-    let d_affine = G1Affine::from(d_element * r_2_inv);
+    d_element *= r_2_inv;
     let close_len = close_index.len();
-    let ipk_rand = G2Affine::from(ipk.0 * r);
-    let abar = G1Affine::from(cred.a * (r_1 * r_2_inv * r_inv));
-    let bbar = G1Affine::from((d_affine * r_1) + (abar * (-cred.e * r)));
+    let ipk_rand_pro = ipk.0 * r;
+    let abar_pro = cred.a * (r_1 * r_2_inv * r_inv);
+    let bbar_pro = (d_element * r_1) + (abar_pro * (-cred.e * r));
 
-    let d2_affine = G2Affine::from((pp.gbar2 + ipk.0) * r_3_inv);
-    let abar2 = G2Affine::from(verifier_sig.a * (r * r_3_inv));
-    let bbar2 = G2Affine::from((d2_affine * r) + (abar2 * (-verifier_sig.e)));
+    let d2_pro = (pp.gbar2 + ipk.0) * r_3_inv;
+    let abar2_pro = verifier_sig.a * (r * r_3_inv);
+    let bbar2_pro = (d2_pro * r) + (abar2_pro * (-verifier_sig.e));
 
     let alpha1 = Fr::rand(&mut rng);
     let alpha2 = Fr::rand(&mut rng);
@@ -182,30 +182,32 @@ pub fn present(
     let gamma2 = Fr::rand(&mut rng);
     let delta1_vec = (0..close_len).map(|_| Fr::rand(&mut rng)).collect::<Vec<Fr>>();
 
-    let u1 = G1Affine::from((d_affine * alpha1) + (abar * beta1));
-    let mut u2_element = d_affine * gamma1;
+    let u1_pro = (d_element * alpha1) + (abar_pro * beta1);
+    let mut u2_element = d_element * gamma1;
     for i in 0..close_len{
         u2_element += h_generators[close_index[i]] * delta1_vec[i];
     }
-    let u2 = G1Affine::from(u2_element);
-    let u3 = G2Affine::from((d2_affine * alpha2) + (abar2 * beta2));
-    let u4 = G2Affine::from((d2_affine * gamma2) + (pp.gbar2 * (-alpha2)));
+    // let u2 = G1Affine::from(u2_element);
+    let u3_pro = (d2_pro * alpha2) + (abar2_pro * beta2);
+    let u4_pro = (d2_pro * gamma2) + (pp.gbar2 * (-alpha2));
     let dst = b"MY_CHALLENGE_GENERATOR_DST_Issuer_Hiding_V1";
-    let c_inputs1 = vec![
-        abar,
-        bbar,
-        d_affine,
-        u1,
-        u2,
+    let c_inputs1_pro = vec![
+        abar_pro,
+        bbar_pro,
+        d_element,
+        u1_pro,
+        u2_element,
     ];
-    let c_input2 = vec![
-        ipk_rand,
-        abar2,
-        bbar2,
-        d2_affine,
-        u3,
-        u4,
+    let c_inputs1 = G1Projective::normalize_batch(&c_inputs1_pro);
+    let c_input2_pro = vec![
+        ipk_rand_pro,
+        abar2_pro,
+        bbar2_pro,
+        d2_pro,
+        u3_pro,
+        u4_pro,
     ];
+    let c_input2 = G2Projective::normalize_batch(&c_input2_pro);
     let mut c_inputs_buffer = Vec::new();
     for h_i in &h_generators{
         h_i.serialize_compressed(&mut c_inputs_buffer).unwrap();
@@ -222,13 +224,13 @@ pub fn present(
 
     let c = bbs::hash_to_fr(&c_inputs_buffer[..], dst);
     let pikp = PiKP{
-        a_bar1: abar,
-        b_bar1: bbar,
-        d_1: d_affine,
-        ipk_rand: ipk_rand,
-        a_bar2: abar2,
-        b_bar2: bbar2,
-        d_2: d2_affine,
+        a_bar1: c_inputs1[0],
+        b_bar1: c_inputs1[1],
+        d_1: c_inputs1[2],
+        ipk_rand: c_input2[0],
+        a_bar2: c_input2[1],
+        b_bar2: c_input2[2],
+        d_2: c_input2[3],
         open: reveal_index.clone(),
         len: message_len,
         message_list: open_messages,
@@ -275,7 +277,7 @@ pub fn verify_present(
     }
     let close_len = close_index.len();
 
-    let u1 = G1Affine::from((pikp.d_1 * pizkp.s1) + (pikp.a_bar1 * pizkp.t1) + (pikp.b_bar1 * (-pizkp.c)));
+    let mut u_12_pro = vec![(pikp.d_1 * pizkp.s1) + (pikp.a_bar1 * pizkp.t1) + (pikp.b_bar1 * (-pizkp.c))];
     let mut u2_element = pikp.d_1 * pizkp.z1 + pp.g1 * (-pizkp.c);
     for i in 0..pikp.open.len(){
         let h_i = h_generators[pikp.open[i]];
@@ -285,25 +287,25 @@ pub fn verify_present(
         let h_i = h_generators[close_index[i]];
         u2_element += h_i * (pizkp.v1[i]);
     }
-    let u2 = G1Affine::from(u2_element);
-    let u3 = G2Affine::from((pikp.d_2 * pizkp.s2) + (pikp.a_bar2 * pizkp.t2) + (pikp.b_bar2 * (-pizkp.c)));
-    let u4 = G2Affine::from(pikp.d_2 * pizkp.z2 + pp.gbar2 * (-pizkp.s2) + pikp.ipk_rand * (-pizkp.c));
+    u_12_pro.push(u2_element);
+    let u_12_affine = G1Projective::normalize_batch(&u_12_pro);
+    let u_34_pro = vec![
+        (pikp.d_2 * pizkp.s2) + (pikp.a_bar2 * pizkp.t2) + (pikp.b_bar2 * (-pizkp.c)),
+        pikp.d_2 * pizkp.z2 + pp.gbar2 * (-pizkp.s2) + pikp.ipk_rand * (-pizkp.c)
+    ];
+    let u_34_affine = G2Projective::normalize_batch(&u_34_pro);
 
     let dst = b"MY_CHALLENGE_GENERATOR_DST_Issuer_Hiding_V1";
     let c_inputs1 = vec![
         pikp.a_bar1,
         pikp.b_bar1,
         pikp.d_1,
-        u1,
-        u2,
     ];
     let c_input2 = vec![
         pikp.ipk_rand,
         pikp.a_bar2,
         pikp.b_bar2,
         pikp.d_2,
-        u3,
-        u4,
     ];
     let mut c_inputs_buffer = Vec::new();
     for h_i in &h_generators{
@@ -312,8 +314,14 @@ pub fn verify_present(
     for c_input in &c_inputs1{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
+    for u_i in &u_12_affine{
+        u_i.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    }
     for c_input in &c_input2{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    }
+    for u_i in &u_34_affine{
+        u_i.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
     for open_msg in &pikp.message_list{
         open_msg.serialize_compressed(&mut c_inputs_buffer).unwrap();
