@@ -306,6 +306,9 @@ pub fn verify_present(
         u4,
     ];
     let mut c_inputs_buffer = Vec::new();
+    for h_i in &h_generators{
+        h_i.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    }
     for c_input in &c_inputs1{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
