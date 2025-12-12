@@ -11,10 +11,8 @@ use issuer_hiding_shigeo::issuer_hiding as ih;
 use mybbs::{bbs, issuer, verifier};
 
 fn myih_benchmark_pc(c: &mut Criterion) {
-    // let message_len = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
-    // let issuer_num = [5, 10, 50, 100, 500, 1000];
-    let message_len = [50];
-    let issuer_num = [5];
+    let message_len = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+    let issuer_num = [5, 10, 50, 100, 500, 1000];
     let mut rng = thread_rng();
     let pp = ih::par_gen();
 
@@ -148,10 +146,8 @@ fn myih_benchmark_pc(c: &mut Criterion) {
 }
 
 fn myih_benchmark_android(c: &mut Criterion) {
-    // let message_len = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
-    // let issuer_num = [5, 10, 50, 100, 500, 1000];
-    let message_len = [50];
-    let issuer_num = [5];
+    let message_len = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+    let issuer_num = [5, 10, 50, 100, 500, 1000];
     let mut rng = thread_rng();
     let pp = ih::par_gen();
 
