@@ -1,7 +1,6 @@
-use ark_bls12_381::{Bls12_381, G1Affine, G1Projective, G2Affine};
-use ark_ec::AffineRepr;
+use ark_bls12_381::{Bls12_381, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup};
 use ark_ff::Field;
-use ark_ec::pairing::Pairing;
 use ark_std::{fmt::Debug, UniformRand, vec::Vec};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use rand::thread_rng;
@@ -88,25 +87,30 @@ pub fn set_policy(pp: &issuer::PublicParameters, ipk_list: &Vec<issuer::PublicKe
         b: b,
     };
 
-    let s = G2Affine::from(pp.g2 * a);
-    let mut t: Vec<G2Affine> = Vec::new();
+    let s_pro = pp.g2 * a;
+    let mut t_pro  = Vec::new();
     for i in 0..ipk_len{
-        let t_i = G2Affine::from((ipk_list[i].0 + pp.g2 * b) * a);
-        t.push(t_i);
+        let t_i = (ipk_list[i].0 + pp.g2 * b) * a;
+        t_pro.push(t_i);
     }
+
     let alpha = Fr::rand(&mut rng);
     let beta = Fr::rand(&mut rng);
-    let u_1 = G2Affine::from(s * alpha);
+    let u_1_pro = s_pro * alpha;
     let mut u_2_vec = Vec::new();
     for i in 0..ipk_len{
-        let u_2_i = G2Affine::from(t[i] * alpha + pp.g2 * beta);
+        let u_2_i = t_pro[i] * alpha + pp.g2 * beta;
         u_2_vec.push(u_2_i);
     }
+
     let dst = b"MY_CHALLENGE_GENERATOR_DST_Set_Policy_V1";
-    let mut c_input = vec![s];
-    c_input.extend(t.clone());
-    c_input.push(u_1);
-    c_input.extend(u_2_vec.clone());
+    let mut c_input_pro = vec![s_pro];
+    c_input_pro.extend(t_pro.clone());
+    c_input_pro.push(u_1_pro);
+    c_input_pro.extend(u_2_vec.clone());
+    // s, t_i, u1, u2_i
+    let c_input = G2Projective::normalize_batch(&c_input_pro);
+
     let mut c_input_buffer = Vec::new();
     for issuer_pk in ipk_list{
         issuer_pk.0.serialize_compressed(&mut c_input_buffer).unwrap();
@@ -125,8 +129,8 @@ pub fn set_policy(pp: &issuer::PublicParameters, ipk_list: &Vec<issuer::PublicKe
     };
     let pk = PolicyPublicKey{
         ipks: ipk_list.clone(),
-        s: s,
-        t: t,
+        s: c_input[0],
+        t: c_input[1..=ipk_len].to_vec(),
         pi: pi,
     };
     let keypair = PolicyKeyPair{
@@ -149,11 +153,13 @@ pub fn audit_policy(pp: &issuer::PublicParameters, ppk: &PolicyPublicKey) -> boo
     }
     let mut c_input = vec![s];
     c_input.extend(t.clone());
-    c_input.push(G2Affine::from((s * pi_s) + (pp.g2 * (-c))));
+    let mut u_pro = vec![s * pi_s + pp.g2 * (-c)];
     for i in 0..ipk_len{
         let ipk = &ipk_list[i];
-        c_input.push(G2Affine::from((t[i] * pi_s) + (pp.g2 * pi_t) + (ipk.0 * (-c))));
+        u_pro.push((t[i] * pi_s) + (pp.g2 * pi_t) + (ipk.0 * (-c)));
     }
+    c_input.extend(G2Projective::normalize_batch(&u_pro));
+    
     let dst = b"MY_CHALLENGE_GENERATOR_DST_Set_Policy_V1";
     let mut c_input_buffer = Vec::new();
     for issuer_pk in ipk_list{
@@ -211,30 +217,33 @@ pub fn present(
             close_index.push(i);
         }
     }
-    let d_affine = G1Affine::from(d_element * r_2_inv);
+    d_element *= r_2_inv;
+    // let d_affine = G1Affine::from(d_element * r_2_inv);
     let close_len = close_index.len();
-    let abar = G1Affine::from(cred.a * (r_1 * r_2_inv));
-    let bbar = G1Affine::from((d_affine * r_1) + (abar * (-cred.e - r)));
+    // let abar = G1Affine::from(cred.a * (r_1 * r_2_inv));
+    // let bbar = G1Affine::from((d_affine * r_1) + (abar * (-cred.e - r)));
+    let abar_pro = cred.a * (r_1 * r_2_inv);
+    let bbar_pro = (d_element * r_1) + (abar_pro * (-cred.e - r));
 
     let alpha = Fr::rand(&mut rng);
     let beta = Fr::rand(&mut rng);
     let gamma = Fr::rand(&mut rng);
     let delta_vec = (0..close_len).map(|_| Fr::rand(&mut rng)).collect::<Vec<Fr>>();
 
-    let u1 = G1Affine::from((d_affine * alpha) + (abar * beta));
-    let mut u2_element = d_affine * gamma;
+    let u1_pro = (d_element * alpha) + (abar_pro * beta);
+    let mut u2_element = d_element * gamma;
     for i in 0..close_len{
         u2_element += h_generators[close_index[i]] * delta_vec[i];
     }
-    let u2 = G1Affine::from(u2_element);
     let dst = b"MY_CHALLENGE_GENERATOR_DST_Issuer_Hiding_V1";
-    let c_inputs1 =vec![
-        abar,
-        bbar,
-        d_affine,
-        u1,
-        u2,
+    let c_inputs1_pro =vec![
+        abar_pro,
+        bbar_pro,
+        d_element,
+        u1_pro,
+        u2_element,
     ];
+    let c_inputs1 = G1Projective::normalize_batch(&c_inputs1_pro);
     let mut c_inputs_buffer = Vec::new();
     for h in h_generators{
         h.serialize_compressed(&mut c_inputs_buffer).unwrap();
@@ -248,9 +257,9 @@ pub fn present(
 
     let c = bbs::hash_to_fr(&c_inputs_buffer[..], dst);
     let pikp = PiKP{
-        a_bar: abar,
-        b_bar: bbar,
-        d: d_affine,
+        a_bar: c_inputs1[0],
+        b_bar: c_inputs1[1],
+        d: c_inputs1[2],
         sigma_tilde: sigma_tilde,
         open: reveal_index.clone(),
         len: message_len,
@@ -303,12 +312,13 @@ pub fn verify_present(
         let h_i = h_generators[close_index[i]];
         u2_element += h_i * (pizkp.v[i]);
     }
+    let mut u_pro = vec![(pikp.d * pizkp.s) + (pikp.a_bar * pizkp.t) + (pikp.b_bar * (-pizkp.c))];
+    u_pro.push(u2_element);
+    let u = G1Projective::normalize_batch(&u_pro);
     let c_inputs1 =vec![
         pikp.a_bar,
         pikp.b_bar,
         pikp.d,
-        G1Affine::from((pikp.d * pizkp.s) + (pikp.a_bar * pizkp.t) + (pikp.b_bar * (-pizkp.c))),
-        G1Affine::from(u2_element),
     ];
     let mut c_inputs_buffer = Vec::new();
     for h in h_generators{
@@ -319,6 +329,9 @@ pub fn verify_present(
     }
     for c_input in &c_inputs1{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    }
+    for u_i in &u{
+        u_i.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
     let c = bbs::hash_to_fr(&c_inputs_buffer[..], dst);
 

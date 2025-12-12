@@ -35,8 +35,8 @@ pub fn par_gen() -> PublicParameters{
     let dst2 = b"BBS-SIG-GENERATOR-DST-V2";
     let gbar1_bytes = "Issuer-Hiding BBS Make to gbar1".to_string().into_bytes();
     let gbar2_bytes = "Issuer-Hiding BBS Make to gbar2".to_string().into_bytes();
-    let gbar1 = G1Affine::from(bbs::hash_to_g1(&gbar1_bytes[..], dst1));
-    let gbar2 = G2Affine::from(bbs::hash_to_g2(&gbar2_bytes[..], dst2));
+    let gbar1 = bbs::hash_to_g1(&gbar1_bytes[..], dst1);
+    let gbar2 = bbs::hash_to_g2(&gbar2_bytes[..], dst2);
 
     let pp = PublicParameters{
         gbar1,  
