@@ -81,6 +81,9 @@ pub fn prove(
     ];
     let c_inputs = G1Projective::normalize_batch(&c_inputs_pro);
     let mut buffer = Vec::new();
+    for h_i in &h_generators{
+        h_i.serialize_compressed(&mut buffer).unwrap();
+    }
     for c_input in &c_inputs{
         c_input.serialize_compressed(&mut buffer).unwrap();
     }
@@ -151,6 +154,9 @@ pub fn verify_proof(
         pikp.d
     ];
     let mut buffer = Vec::new();
+    for h_i in &h_generators{
+        h_i.serialize_compressed(&mut buffer).unwrap();
+    }
     for c_input in &c_inputs{
         c_input.serialize_compressed(&mut buffer).unwrap();
     }
