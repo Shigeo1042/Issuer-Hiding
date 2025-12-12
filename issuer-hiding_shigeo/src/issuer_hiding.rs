@@ -112,6 +112,12 @@ pub fn verify_list(pp: &bbs::PublicParameters, (vpk, list): &(verifier::PublicKe
         gbar1: pp.gbar1,
         gbar2: pp.gbar2,
     };
+
+    if Bls12_381::pairing(vpk.0, pp.gbar2) != Bls12_381::pairing(pp.gbar1, vpk.1) {
+        println!("Verifier Public Key check failed");
+        return false
+    }
+
     for i in 0..list.len(){
         let cred = &list[i];
         let ipk = &cred.ipk;
@@ -221,6 +227,10 @@ pub fn present(
     for open_msg in &open_messages{
         open_msg.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
+    for list_i in list{
+        list_i.ipk.0.serialize_compressed(&mut c_inputs_buffer).unwrap();
+        list_i.cred.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    }
 
     let c = bbs::hash_to_fr(&c_inputs_buffer[..], dst);
     let pikp = PiKP{
@@ -262,7 +272,7 @@ pub fn present(
 
 pub fn verify_present(
     pp: &bbs::PublicParameters, 
-    (vpk, _): &(verifier::PublicKey, Vec<TrustedIssuerCredential>), 
+    (vpk, list): &(verifier::PublicKey, Vec<TrustedIssuerCredential>), 
     pikp: &PiKP, 
     pizkp: &PiZKP
 ) -> bool{
@@ -326,6 +336,11 @@ pub fn verify_present(
     for open_msg in &pikp.message_list{
         open_msg.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
+    for list_i in list{
+        list_i.ipk.0.serialize_compressed(&mut c_inputs_buffer).unwrap();
+        list_i.cred.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    }
+
     let c = bbs::hash_to_fr(&c_inputs_buffer[..], dst);
 
     if c != pizkp.c{
