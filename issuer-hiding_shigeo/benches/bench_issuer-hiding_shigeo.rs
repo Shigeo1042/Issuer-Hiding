@@ -398,7 +398,7 @@ fn my_benchmark_test(c: &mut Criterion) {
                     // Present Benchmark
                     group.bench_with_input(BenchmarkId::new("make_pizkp", &param_str), &param_str, |b, _| {
                         b.iter(|| {
-                            let pt = make_pizkp((c, alpha1, alpha2, beta1, beta2, gamma1, gamma2, delta1_vec.clone(), r, r_1, r_2, r_3), &cred_temp, &verifier_sig, &open_messages.clone(), &close_index, close_len);
+                            let pt = make_pizkp((c, alpha1, alpha2, beta1, beta2, gamma1, gamma2, delta1_vec.clone(), r, r_1, r_2, r_3), &cred_temp, &verifier_sig, &message_fr_temp.clone(), &close_index, close_len);
                             black_box(pt);
                         });
                     });

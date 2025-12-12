@@ -376,7 +376,7 @@ fn katz_test(c: &mut Criterion) {
                     // Present Benchmark
                     group.bench_with_input(BenchmarkId::new("make_pizkp", &param_str), &param_str, |b, _| {
                         b.iter(|| {
-                            let pt = make_pizkp((c, alpha, beta, gamma, delta_vec.clone(), r, r_1, r_2), &cred_temp, &open_messages.clone(), &close_index, close_len);
+                            let pt = make_pizkp((c, alpha, beta, gamma, delta_vec.clone(), r, r_1, r_2), &cred_temp, &message_fr_temp.clone(), &close_index, close_len);
                             black_box(pt);
                         });
                     });
