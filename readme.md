@@ -32,6 +32,7 @@ Licensed under either of
 - Compact Issuer-Hiding Authentication, Application to Anonymous Credential
     - Sandersらが提案したPS署名のIssuer-Hidingの方式
     - [論文](https://petsymposium.org/popets/2024/popets-2024-0097.php)
+    - [issuer-hiding_sanders](./issuer-hiding_sanders/): Shigeo1042のRustでの実装
 
 - Issuer-Hiding for BBS-Based Anonymous Credentials
     - Katzらが提案したBBS署名のIssuer-Hidingの方式

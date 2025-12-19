@@ -1,0 +1,24 @@
+[package]
+name = "issuer-hiding_sanders"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "issuer_hiding_sanders"
+path = "./src/lib.rs"
+
+[dependencies]
+ark-bls12-381 = "0.5.0"
+ark-ec = "0.5.0"
+ark-ff = "0.5.0"
+ark-serialize = "0.5.0"
+ark-std = "0.5.0"
+criterion = "0.8.1"
+hex = "0.4.3"
+rand = "0.8"
+sha2 = "0.10.9"
+
+[[bench]]
+name = "bench_sanders-issuer-hiding"
+path = "benches/bench_issuer-hiding_sanders.rs"
+harness = false
