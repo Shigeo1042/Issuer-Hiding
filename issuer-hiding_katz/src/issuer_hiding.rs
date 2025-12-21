@@ -245,12 +245,8 @@ pub fn present(
     ];
     let c_inputs1 = G1Projective::normalize_batch(&c_inputs1_pro);
     let mut c_inputs_buffer = Vec::new();
-    for h in h_generators{
-        h.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
-    for m in &open_messages{
-        m.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
+    h_generators.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    open_messages.serialize_compressed(&mut c_inputs_buffer).unwrap();
     for c_input in &c_inputs1{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
@@ -321,12 +317,8 @@ pub fn verify_present(
         pikp.d,
     ];
     let mut c_inputs_buffer = Vec::new();
-    for h in h_generators{
-        h.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
-    for m in &pikp.message_list{
-        m.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
+    h_generators.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    pikp.message_list.serialize_compressed(&mut c_inputs_buffer).unwrap();
     for c_input in &c_inputs1{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }

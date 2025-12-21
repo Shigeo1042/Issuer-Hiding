@@ -124,6 +124,7 @@ pub fn verify_list(pp: &bbs::PublicParameters, (vpk, list): &(verifier::PublicKe
         let signature = &cred.cred;
         let is_valid = verifier::verify(&pp_verifier, vpk, &ipk.0, signature);
         if is_valid == false{
+            println!("Credential list entry {} verification failed", i);
             return false
         }
     }
@@ -215,22 +216,15 @@ pub fn present(
     ];
     let c_input2 = G2Projective::normalize_batch(&c_input2_pro);
     let mut c_inputs_buffer = Vec::new();
-    for h_i in &h_generators{
-        h_i.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
+    h_generators.serialize_compressed(&mut c_inputs_buffer).unwrap();
     for c_input in &c_inputs1{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
     for c_input in &c_input2{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
-    for open_msg in &open_messages{
-        open_msg.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
-    for list_i in list{
-        list_i.ipk.0.serialize_compressed(&mut c_inputs_buffer).unwrap();
-        list_i.cred.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
+    open_messages.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    list.serialize_compressed(&mut c_inputs_buffer).unwrap();
 
     let c = bbs::hash_to_fr(&c_inputs_buffer[..], dst);
     let pikp = PiKP{
@@ -318,9 +312,7 @@ pub fn verify_present(
         pikp.d_2,
     ];
     let mut c_inputs_buffer = Vec::new();
-    for h_i in &h_generators{
-        h_i.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
+    h_generators.serialize_compressed(&mut c_inputs_buffer).unwrap();
     for c_input in &c_inputs1{
         c_input.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
@@ -333,13 +325,8 @@ pub fn verify_present(
     for u_i in &u_34_affine{
         u_i.serialize_compressed(&mut c_inputs_buffer).unwrap();
     }
-    for open_msg in &pikp.message_list{
-        open_msg.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
-    for list_i in list{
-        list_i.ipk.0.serialize_compressed(&mut c_inputs_buffer).unwrap();
-        list_i.cred.serialize_compressed(&mut c_inputs_buffer).unwrap();
-    }
+    pikp.message_list.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    list.serialize_compressed(&mut c_inputs_buffer).unwrap();
 
     let c = bbs::hash_to_fr(&c_inputs_buffer[..], dst);
 
