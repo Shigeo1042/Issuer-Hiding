@@ -1,4 +1,4 @@
-use ark_bls12_381::{Bls12_381, G1Affine, G2Affine};
+use ark_bls12_381::{Bls12_381, G1Affine, G2Affine, G1Projective};
 use ark_ff::Field;
 use ark_ec::pairing::Pairing;
 use ark_std::{fmt::Debug, UniformRand, vec::Vec};
@@ -21,12 +21,9 @@ pub struct PublicParameters {
 
 #[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PiKP{
-    pub p1: G2Affine,
-    pub p2: G1Affine,
-    pub p3: G1Affine,
-    pub p4: G2Affine,
-    pub p5: G1Affine,
-    pub abar: G1Affine,
+    pub blind_cred: groth1::Signature, 
+    pub blind_ipk: groth1::PublicKey,
+    pub blind_issuer_sig: groth2::Signature,
     pub open: Vec<usize>,
     pub len: usize,
     pub message_list: Vec<Fr>,
@@ -34,14 +31,12 @@ pub struct PiKP{
 
 #[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
 pub struct PiZKP{
-    pub u1: G2Affine,
-    pub u2: G1Affine,
-    pub u3: G1Affine,
-    pub u4: G2Affine,
-    pub u5: G1Affine,
-    pub u6: G1Affine,
-    pub challenge: Fr,
-    pub randome_fr: Vec<Fr>,
+    pub c: Fr,
+    pub z1: Fr,
+    pub z2: Fr,
+    pub z3: Fr,
+    pub z4: Fr,
+    pub z5: Vec<Fr>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, CanonicalDeserialize, CanonicalSerialize)]
@@ -161,7 +156,7 @@ pub fn verify_list(pp: &PublicParameters,(vpk, list): &(groth2::PublicKey, Vec<T
     return true
 }
 
-pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::PublicKey, message: &Vec<Fr>, (_, list): &(groth2::PublicKey, Vec<TrustedIssuerCredential>),open: &Vec<usize>) -> (groth1::Signature, groth1::PublicKey, groth2::Signature, PiKP, PiZKP){
+pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::PublicKey, message: &Vec<Fr>, (_, list): &(groth2::PublicKey, Vec<TrustedIssuerCredential>),open: &Vec<usize>) -> (PiKP, PiZKP){
     //make random holder signature
     let new_cred = groth1::rand_sign(cred);
     let mut issuer_list = list[0].clone();
@@ -170,12 +165,7 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
             issuer_list = list[i].clone();
         }
     }
-    //make message affine
-    let mut message_pro = pp.h[0] * message[0];
-    for i in 1..message.len(){
-        message_pro += pp.h[i] * message[i];
-    }
-    let message_affine = G1Affine::from(message_pro);
+    let h_generators : Vec<G1Affine> = pp.h[0..message.len()].to_vec();
 
     //make random issuer public key signature
     let new_issuer_sig = groth2::rand_sign( &issuer_list.cred);
@@ -226,156 +216,113 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     }
     
     //make proof of knowledge
-    let r = Fr::rand(&mut rng);
-    let r_inverse = r.inverse().unwrap();
-    let r1 = gamma * r;
-    let r2 = beta * r;
-
-    let abar = G1Affine::from(message_affine * r);
-    let p1 = G2Affine::from(blind_cred.r2 * alpha);
-    let p2 = G1Affine::from(pp.g1 * (-gamma));
-    let p3 = G1Affine::from(pp.y1 * (-r1));
-    let p4 = G2Affine::from(blind_cred.r2 * r2);
-    let p5 = G1Affine::from(blind_issuer_sig.r1 * delta);
+    let r1 = Fr::rand(&mut rng);
+    let r2 = Fr::rand(&mut rng);
+    let r3 = Fr::rand(&mut rng);
+    let r4 = Fr::rand(&mut rng);
+    let mut r5 = Vec::new();
+    for _ in 0..close.len(){
+        r5.push(Fr::rand(&mut rng));
+    }
 
     let pi_kp = PiKP{
-        p1,
-        p2,
-        p3,
-        p4,
-        p5,
-        abar,
+        blind_cred: blind_cred.clone(),
+        blind_ipk: blind_ipk.clone(),
+        blind_issuer_sig: blind_issuer_sig.clone(),
         open: open.clone(),
         len: message.len(),
-        message_list: message_open_list,
+        message_list: message_open_list.clone(),
     };
-
-    let mut rprime : Vec<Fr> = Vec::new();
-    for _ in 0..6{
-        rprime.push(Fr::rand(&mut rng));
+    
+    let k_ipk = G2Affine::from(blind_ipk.0 * (-r3));
+    let mut message_close_proj_rand = pp.h[close[0]] * -r5[0];
+    for i in 1..close.len(){
+        message_close_proj_rand += pp.h[close[i]] * -r5[i];
     }
-    for _ in &close {
-        rprime.push(Fr::rand(&mut rng));
-    }
+    let message_close_affine_rand = G1Affine::from(message_close_proj_rand);
+    let u1 = Bls12_381::pairing(G1Affine::from(blind_cred.s1 * r1), blind_cred.r2) + Bls12_381::pairing(pp.g1, k_ipk);
+    let u2 = Bls12_381::pairing(G1Affine::from(blind_cred.t1 * r2), blind_cred.r2) + Bls12_381::pairing(pp.y1, k_ipk) + Bls12_381::pairing(message_close_affine_rand, pp.g2);
+    let u3 = Bls12_381::pairing(blind_issuer_sig.r1, blind_issuer_sig.t2 * r4) + Bls12_381::pairing(pp.g1, k_ipk);
 
-    let u1 = blind_cred.r2 * rprime[0];
-    let u2 = pp.g1 * rprime[1];
-    let u3 = pp.y1 * rprime[2];
-    let u4 = blind_cred.r2 * rprime[3];
-    let u5 = blind_issuer_sig.r1 * rprime[4];
-    let mut u6_proj = abar * rprime[5];
-    for i in 0..close.len(){
-        u6_proj += pp.h[close[i]] * rprime[6+i];
-    }
+    let dst = b"CHALLENGE_GENERATOR_DST_Bobolz_Issuer_Hiding_V1";
+    let mut c_inputs_buffer = Vec::new();
+    blind_cred.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    blind_ipk.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    blind_issuer_sig.serialize_compressed(&mut c_inputs_buffer).unwrap();
 
-    let p1_string = p1.to_string();
-    let p2_string = p2.to_string();
-    let p3_string = p3.to_string();
-    let p4_string = p4.to_string();
-    let p5_string = p5.to_string();
-    let abar_string = abar.to_string();
+    h_generators.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    message_open_list.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    u1.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    u2.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    u3.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    list.serialize_compressed(&mut c_inputs_buffer).unwrap();
 
-    let challange_string = p1_string + &p2_string + &p3_string + &p4_string + &p5_string + &abar_string;
-    let challange_u8 = challange_string.as_bytes();
-    let dst = b"MY_CHALLENGE_GENERATOR_DST_Issuer_Hiding_V1";
-    let challange = groth::hash_to_fr(&challange_u8, dst);
-    let mut rprime2 : Vec<Fr> = Vec::new();
-    rprime2.push(rprime[0] + challange * alpha);
-    rprime2.push(rprime[1] + challange * (-gamma));
-    rprime2.push(rprime[2] + challange * (-r1));
-    rprime2.push(rprime[3] + challange * r2);
-    rprime2.push(rprime[4] + challange * delta);
-    rprime2.push(rprime[5] + challange * r_inverse);
-    for i in 0..close.len(){
-        rprime2.push(rprime[i + 6] + challange * (-message_close_list[i]));
+    let c = groth::hash_to_fr(&c_inputs_buffer[..], dst);
+
+    let z1 = r1 + c * alpha;
+    let z2 = r2 + c * beta;
+    let z3 = r3 + c * gamma;
+    let z4 = r4 + c * delta;
+    let mut z5 = Vec::new();
+    for i in 0..r5.len(){
+        z5.push(r5[i] + c * message_close_list[i]);
     }
     let pi_zkp = PiZKP{
-        u1: G2Affine::from(u1),
-        u2: G1Affine::from(u2),
-        u3: G1Affine::from(u3),
-        u4: G2Affine::from(u4),
-        u5: G1Affine::from(u5),
-        u6: G1Affine::from(u6_proj),
-        challenge: challange,
-        randome_fr: rprime2,
+        c,
+        z1,
+        z2,
+        z3,
+        z4,
+        z5,
     };
-    return (blind_cred, blind_ipk, blind_issuer_sig, pi_kp, pi_zkp)
+    return (pi_kp, pi_zkp)
 }
 
-pub fn verify_present(pp: &PublicParameters, (vpk, _): &(groth2::PublicKey, Vec<TrustedIssuerCredential>), (cred, ipk, issuer_sig, pi_kp, pi_zkp): &(groth1::Signature, groth1::PublicKey, groth2::Signature, PiKP, PiZKP)) -> bool{
-    if Bls12_381::pairing(pp.y1,pp.g2) != Bls12_381::pairing(cred.s1, pi_kp.p1) + Bls12_381::pairing(pi_kp.p2, ipk.0){
-        println!("Pairing check 1 failed");
-        return false
-    }
-    if Bls12_381::pairing(pi_kp.abar, pp.g2) != Bls12_381::pairing(pi_kp.p3, ipk.0) + Bls12_381::pairing(cred.t1, pi_kp.p4){
-        println!("Pairing check 2 failed");
-        return false
-    }
-    if Bls12_381::pairing(issuer_sig.r1, issuer_sig.s2) != Bls12_381::pairing(pp.g1, pp.y2) + Bls12_381::pairing(vpk.0, pp.g2){
-        println!("Pairing check 3 failed");
-        return false
-    }
-    if Bls12_381::pairing(vpk.0, pp.y2) != Bls12_381::pairing(pi_kp.p2, ipk.0) + Bls12_381::pairing(pi_kp.p5, issuer_sig.t2){
-        println!("Pairing check 4 failed");
-        return false
-    }
-    let p1_string = pi_kp.p1.to_string();
-    let p2_string = pi_kp.p2.to_string();
-    let p3_string = pi_kp.p3.to_string();
-    let p4_string = pi_kp.p4.to_string();
-    let p5_string = pi_kp.p5.to_string();
-    let abar_string = pi_kp.abar.to_string();
-    let challange_string = p1_string + &p2_string + &p3_string + &p4_string + &p5_string + &abar_string;
-    let challange_u8 = challange_string.as_bytes();
-    let dst = b"MY_CHALLENGE_GENERATOR_DST_Issuer_Hiding_V1";
-    let challange = groth::hash_to_fr(&challange_u8, dst);
-    if challange != pi_zkp.challenge{
-        println!("Challenge check failed");
-        return false
-    }
-    let new_p1 = pi_zkp.u1 + pi_kp.p1 * pi_zkp.challenge;
-    let new_p2 = pi_zkp.u2 + pi_kp.p2 * pi_zkp.challenge;
-    let new_p3 = pi_zkp.u3 + pi_kp.p3 * pi_zkp.challenge;
-    let new_p4 = pi_zkp.u4 + pi_kp.p4 * pi_zkp.challenge;
-    let new_p5 = pi_zkp.u5 + pi_kp.p5 * pi_zkp.challenge; 
-    let mut new_open_proj = pp.h[pi_kp.open[0]] * pi_kp.message_list[0];
-    for i in 1..pi_kp.open.len(){
-        new_open_proj += pp.h[pi_kp.open[i]] * pi_kp.message_list[i];
-    }
-    new_open_proj = G1Affine::from(new_open_proj) * pi_zkp.challenge;
-    new_open_proj += pi_zkp.u6;
-    if new_p1 != cred.r2 * pi_zkp.randome_fr[0]{
-        println!("p1 check failed");
-        return false
-    }
-    if new_p2 != pp.g1 * pi_zkp.randome_fr[1]{
-        println!("p2 check failed");
-        return false
-    }
-    if new_p3 != pp.y1 * pi_zkp.randome_fr[2]{
-        println!("p3 check failed");
-        return false
-    }
-    if new_p4 != cred.r2 * pi_zkp.randome_fr[3]{
-        println!("p4 check failed");
-        return false
-    }
-    if new_p5 != issuer_sig.r1 * pi_zkp.randome_fr[4]{
-        println!("p5 check failed");
-        return false
-    }
-    let mut close = Vec::new();
+pub fn verify_present(pp: &PublicParameters, (vpk, list): &(groth2::PublicKey, Vec<TrustedIssuerCredential>), (pi_kp, pi_zkp): &(PiKP, PiZKP)) -> bool{
+    let blind_cred = &pi_kp.blind_cred;
+    let blind_ipk = &pi_kp.blind_ipk;
+    let blind_issuer_sig = &pi_kp.blind_issuer_sig;
+    let h_generators : Vec<G1Affine> = pp.h[0..pi_kp.len].to_vec();
+    let mut close_index: Vec<usize> = Vec::new();
     for i in 0..pi_kp.len{
         if !pi_kp.open.contains(&i){
-            close.push(i);
+            close_index.push(i);
         }
     }
-    let mut new_p6 = pi_kp.abar * pi_zkp.randome_fr[5];
-    for i in 6..pi_zkp.randome_fr.len(){
-        new_p6 += pp.h[close[i - 6]] * pi_zkp.randome_fr[i];
+    let close_len = close_index.len();
+
+    let mut k2_element = G1Projective::from(G1Affine::identity());
+    for i in 0..pi_kp.open.len(){
+        let h_i = h_generators[pi_kp.open[i]];
+        k2_element += (h_i * (pi_kp.message_list[i])) * (-pi_zkp.c);
     }
-    if new_open_proj != new_p6{
-        println!("p6 check failed");
+    for i in 0..close_len{
+        let h_i = h_generators[close_index[i]];
+        k2_element += h_i * (-pi_zkp.z5[i]);
+    }
+
+    let k1 = Bls12_381::pairing(G1Affine::from(blind_cred.s1 * pi_zkp.z1), blind_cred.r2) + Bls12_381::pairing(pp.g1, G2Affine::from(blind_ipk.0 * (-pi_zkp.z3))) + Bls12_381::pairing(pp.y1, pp.g2 * (-pi_zkp.c));
+    let k2 = Bls12_381::pairing(G1Affine::from(blind_cred.t1 * pi_zkp.z2), blind_cred.r2) + Bls12_381::pairing(pp.y1, G2Affine::from(blind_ipk.0 * (-pi_zkp.z3))) + Bls12_381::pairing(G1Affine::from(k2_element), pp.g2);
+    let k3 = Bls12_381::pairing(blind_issuer_sig.r1, blind_issuer_sig.t2 * pi_zkp.z4) + Bls12_381::pairing(pp.g1, G2Affine::from(blind_ipk.0 * (-pi_zkp.z3))) + Bls12_381::pairing(vpk.0.clone(), pp.y2 * (-pi_zkp.c));
+
+    let dst = b"CHALLENGE_GENERATOR_DST_Bobolz_Issuer_Hiding_V1";
+    let mut c_inputs_buffer = Vec::new();
+    blind_cred.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    blind_ipk.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    blind_issuer_sig.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    h_generators.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    pi_kp.message_list.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    k1.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    k2.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    k3.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    list.serialize_compressed(&mut c_inputs_buffer).unwrap();
+    let c_calculated = groth::hash_to_fr(&c_inputs_buffer[..], dst);
+    if c_calculated != pi_zkp.c{
+        println!("ZKP verification failed");
+        return false
+    }
+    if Bls12_381::pairing(blind_issuer_sig.r1, blind_issuer_sig.s2) != Bls12_381::pairing(pp.g1, pp.y2) + Bls12_381::pairing(vpk.0, pp.g2){
+        println!("ZKP verification failed at equation 1");
         return false
     }
     return true
