@@ -176,7 +176,7 @@ pub fn verify_sign(pp: &PublicParameters, pk: &PublicKey, signature: &Signature,
     for i in 1..message_len{
         temp_element += pk.pk_y[i] * messages[i];
     }
-    let left = Bls12_381::pairing(signature.sigma2, G2Affine::from(pp.g2));
+    let left = Bls12_381::pairing(signature.sigma2, pp.g2);
     let right = Bls12_381::pairing(signature.sigma1, G2Affine::from(pp.x2 + temp_element));
 
     if left != right{
