@@ -12,6 +12,13 @@ fn bobolz_benchmark(c: &mut Criterion) {
     let message_len = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
     let issuer_num = [5, 10, 50, 100, 500, 1000];
     let mut rng = thread_rng();
+
+    c.bench_function("Setup", |b| {
+        b.iter(|| {
+            let pp = ih::par_gen();
+            black_box(pp);
+        });
+    });
     let pp = ih::par_gen();
 
     c.bench_function("Issuer Key Gen", |b| {
