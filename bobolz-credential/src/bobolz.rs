@@ -242,7 +242,7 @@ pub fn present(pp: &PublicParameters, cred: &groth1::Signature, ipk: &groth1::Pu
     let message_close_affine_rand = G1Affine::from(message_close_proj_rand);
     let u1 = Bls12_381::pairing(G1Affine::from(blind_cred.s1 * r1), blind_cred.r2) + Bls12_381::pairing(pp.g1, k_ipk);
     let u2 = Bls12_381::pairing(G1Affine::from(blind_cred.t1 * r2), blind_cred.r2) + Bls12_381::pairing(pp.y1, k_ipk) + Bls12_381::pairing(message_close_affine_rand, pp.g2);
-    let u3 = Bls12_381::pairing(blind_issuer_sig.r1, blind_issuer_sig.t2 * r4) + Bls12_381::pairing(pp.g1, k_ipk);
+    let u3 = Bls12_381::pairing(G1Affine::from(blind_issuer_sig.r1 * r4), blind_issuer_sig.t2) + Bls12_381::pairing(pp.g1, k_ipk);
 
     let dst = b"CHALLENGE_GENERATOR_DST_Bobolz_Issuer_Hiding_V1";
     let mut c_inputs_buffer = Vec::new();
@@ -303,7 +303,7 @@ pub fn verify_present(pp: &PublicParameters, (vpk, list): &(groth2::PublicKey, V
 
     let k1 = Bls12_381::pairing(G1Affine::from(blind_cred.s1 * pi_zkp.z1), blind_cred.r2) + Bls12_381::pairing(pp.g1, G2Affine::from(blind_ipk.0 * (-pi_zkp.z3))) + Bls12_381::pairing(pp.y1, pp.g2 * (-pi_zkp.c));
     let k2 = Bls12_381::pairing(G1Affine::from(blind_cred.t1 * pi_zkp.z2), blind_cred.r2) + Bls12_381::pairing(pp.y1, G2Affine::from(blind_ipk.0 * (-pi_zkp.z3))) + Bls12_381::pairing(G1Affine::from(k2_element), pp.g2);
-    let k3 = Bls12_381::pairing(blind_issuer_sig.r1, blind_issuer_sig.t2 * pi_zkp.z4) + Bls12_381::pairing(pp.g1, G2Affine::from(blind_ipk.0 * (-pi_zkp.z3))) + Bls12_381::pairing(vpk.0.clone(), pp.y2 * (-pi_zkp.c));
+    let k3 = Bls12_381::pairing(G1Affine::from(blind_issuer_sig.r1 * pi_zkp.z4), blind_issuer_sig.t2) + Bls12_381::pairing(pp.g1, G2Affine::from(blind_ipk.0 * (-pi_zkp.z3))) + Bls12_381::pairing(vpk.0.clone(), pp.y2 * (-pi_zkp.c));
 
     let dst = b"CHALLENGE_GENERATOR_DST_Bobolz_Issuer_Hiding_V1";
     let mut c_inputs_buffer = Vec::new();
