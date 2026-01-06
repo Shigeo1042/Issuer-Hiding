@@ -20,7 +20,7 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
     });
     let pp = ih::par_gen();
 
-    c.bench_function("Issuer Key Gen", |b| {
+    c.bench_function("Issuer_Key_Gen", |b| {
         b.iter(|| {
             let ikp = ih::key_gen(&pp);
             black_box(ikp);

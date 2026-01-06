@@ -20,14 +20,14 @@ fn myih_benchmark(c: &mut Criterion){
     });
     let pp = ih::par_gen();
 
-    c.bench_function("Issuer Key Gen", |b| {
+    c.bench_function("Issuer_Key_Gen", |b| {
         b.iter(|| {
             let ikp = ih::issuer_key_gen(&pp);
             black_box(ikp);
         });
     });
 
-    c.bench_function("Verifier Key Gen", |b| {
+    c.bench_function("Verifier_Key_Gen", |b| {
         b.iter(|| {
             let verifier_key_pair = ih::verifier_key_gen(&pp);
             black_box(verifier_key_pair);
@@ -202,14 +202,14 @@ fn myih_benchmark_pc(c: &mut Criterion) {
     });
     let pp = ih::par_gen();
 
-    c.bench_function("Issuer Key Gen", |b| {
+    c.bench_function("Issuer_Key_Gen", |b| {
         b.iter(|| {
             let ikp = ih::issuer_key_gen(&pp);
             black_box(ikp);
         });
     });
 
-    c.bench_function("Verifier Key Gen", |b| {
+    c.bench_function("Verifier_Key_Gen", |b| {
         b.iter(|| {
             let verifier_key_pair = ih::verifier_key_gen(&pp);
             black_box(verifier_key_pair);

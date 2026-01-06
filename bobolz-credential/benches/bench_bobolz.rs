@@ -21,14 +21,14 @@ fn bobolz_benchmark(c: &mut Criterion) {
     });
     let pp = ih::par_gen();
 
-    c.bench_function("Issuer Key Gen", |b| {
+    c.bench_function("Issuer_Key_Gen", |b| {
         b.iter(|| {
             let issuer_key_pair = ih::issuer_key_gen(&pp);
             black_box(issuer_key_pair);
         });
     });
 
-    c.bench_function("Verifier Key Gen", |b| {
+    c.bench_function("Verifier_Key_Gen", |b| {
         b.iter(|| {
             let verifier_key_pair = ih::verifier_key_gen(&pp);
             black_box(verifier_key_pair);
@@ -329,14 +329,14 @@ fn bobolz_pc_benchmark(c: &mut Criterion) {
     let mut rng = thread_rng();
     let pp = ih::par_gen();
 
-    c.bench_function("Issuer Key Gen", |b| {
+    c.bench_function("Issuer_Key_Gen", |b| {
         b.iter(|| {
             let issuer_key_pair = ih::issuer_key_gen(&pp);
             black_box(issuer_key_pair);
         });
     });
 
-    c.bench_function("Verifier Key Gen", |b| {
+    c.bench_function("Verifier_Key_Gen", |b| {
         b.iter(|| {
             let verifier_key_pair = ih::verifier_key_gen(&pp);
             black_box(verifier_key_pair);
