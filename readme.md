@@ -4,39 +4,40 @@ Licensed under either of
 - Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)   
 
-## Issuer-Hidingの実装のまとめ
+## Summary of Issuer-Hiding Implementations
 
 - Issuer-Hiding Attribute-Based Credentials
-    - Bobolz et. al.の提案した方式
-    - [論文](https://link.springer.com/chapter/10.1007/978-3-030-92548-2_9)
-    - [bobolz-credential](./bobolz-credential/): リポジトリ主のRustでの実装（論文を見て1から作成）
-    - [筆者らの実装(JAVA)](https://github.com/cryptimeleon/issuer-hiding-cred)
-    - ゼロ知識証明部分は[CDL16論文](https://link.springer.com/chapter/10.1007/978-3-319-45572-3_1)を参考に作成
-- Protego: Efficient, Revocable and Auditable Anonymous Credentials with Applications to Hyperledger Fabric
-    - Connolly et. al.の提案したIssuer-Hiding可能なAnonymous Credentialの方式
-    - [論文](https://link.springer.com/chapter/10.1007/978-3-031-22912-1_11)
-    - [crypto_docknet](./crypto_docknet/delegatable_credentials/): docknetworkのRustでの実装（[元レポジトリ](https://github.com/docknetwork/crypto/tree/main/delegatable_credentials)）とリポジトリ主によるベンチマークの作成が格納されている
-    - [筆者らの実装](https://github.com/octaviopk9/indocrypt_protego/tree/main)
+    - Scheme proposed by Bobolz et al.
+    - [paper](https://link.springer.com/chapter/10.1007/978-3-030-92548-2_9)
+    - [bobolz-credential](./bobolz-credential/): Rust implementation by the repository owner (built from scratch based on the paper)
+    - [Authors' Implementation (Java)](https://github.com/cryptimeleon/issuer-hiding-cred)
+    - The Zero-Knowledge Proof (ZKP) component was developed with reference to [the CDL16 paper](https://link.springer.com/chapter/10.1007/978-3-319-45572-3_1)
 
-- Bobolzらの方式を元にリポジトリ主らがBBS署名に適用した方式
-    - リポジトリ主らが提案した方式
-    - BobolzらのGroth15署名のIssuer-Hidingの方式を応用
-    - [my_issuer-hiding](./my_issuer-hiding/): リポジトリ主のRustでの実装
-    - BBS署名部分は[mybbs](./bbs/)にリポジトリ主がベンチマーク用に実装
+- Protego: Efficient, Revocable and Auditable Anonymous Credentials with Applications to Hyperledger Fabric
+    - An anonymous credential scheme supporting Issuer-Hiding proposed by Connolly et al.
+    - [paper](https://link.springer.com/chapter/10.1007/978-3-031-22912-1_11)
+    - [crypto_docknet](./crypto_docknet/delegatable_credentials/): Contains the Rust implementation by docknetwork（[Original Repository](https://github.com/docknetwork/crypto/tree/main/delegatable_credentials)） and benchmarks created by the repository owner.
+    - [Authors' Implementation](https://github.com/octaviopk9/indocrypt_protego/tree/main)
+
+- BBS Signature adaptation based on Bobolz et al.
+    - Scheme proposed by the repository owner and co-authers.
+    - Applies the Issuer-Hiding technique from Bobolz et al.’s Groth15 signatures to BBS signatures.
+    - [my_issuer-hiding](./my_issuer-hiding/): Rust implementation by the repository owner.
+    - The core BBS signature logic is implemented in [mybbs](./bbs/) for benchmarking purposes.
 
 - Hidden Issuer Anonymous Credential
-    - Boskらが提案したPS署名のIssuer-Hidingの方式
-    - [論文](https://hal.science/hal-03789485/)
-    - [筆者らの実装](https://gitlab.inria.fr/mgestin/rust_hidden_issuer_signature)
+    - Issuer-Hiding scheme for PS (Pointcheval-Sanders) signatures proposed by Bosk et al.
+    - [paper](https://hal.science/hal-03789485/)
+    - [Authors' Implementation](https://gitlab.inria.fr/mgestin/rust_hidden_issuer_signature)
 
 - Compact Issuer-Hiding Authentication, Application to Anonymous Credential
-    - Sandersらが提案したPS署名のIssuer-Hidingの方式
-    - [論文](https://petsymposium.org/popets/2024/popets-2024-0097.php)
-    - [issuer-hiding_sanders](./issuer-hiding_sanders/): リポジトリ主のRustでの実装
+    - Issuer-Hiding scheme for PS signatures proposed by Sanders and Traoré.
+    - [paper](https://petsymposium.org/popets/2024/popets-2024-0097.php)
+    - [issuer-hiding_sanders](./issuer-hiding_sanders/): Rust implementation by the repository owner.
 
 - Issuer-Hiding for BBS-Based Anonymous Credentials
-    - Katzらが提案したBBS署名のIssuer-Hidingの方式
-    - SandersらのPS署名のIssuer-Hidingの方式を応用
-    - [論文(e-print)](https://eprint.iacr.org/2025/2080)
-    - [issuer-hiding_katz](./issuer-hiding_katz/): リポジトリ主のRustでの実装（Issuer-Hiding部分は論文を見て1から実装）
-    - BBS署名部分は[mybbs](./bbs/)にリポジトリ主がベンチマーク用に実装
+    - Issuer-Hiding scheme for BBS signatures proposed by Katz and Sefranek.
+    - Applies the Issuer-Hiding method of Sanders and Traoré (for PS signatures) to BBS.
+    - [paper (e-print)](https://eprint.iacr.org/2025/2080)
+    - [issuer-hiding_katz](./issuer-hiding_katz/): Rust implementation by the repository owner (the Issuer-Hiding logic was implemented from scratch based on the paper).
+    - The core BBS signature logic is implemented in [mybbs](./bbs/) for benchmarking purposes.

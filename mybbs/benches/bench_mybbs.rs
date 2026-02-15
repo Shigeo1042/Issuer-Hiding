@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId}; // BenchmarkIdを追加
+use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
 use std::hint::black_box;
 use ark_bls12_381::Bls12_381;
 use ark_ec::pairing::Pairing;
@@ -17,13 +17,13 @@ fn mybbs_benchmark_pc(c: &mut Criterion) {
     let ipk = &issuer_key_pair.public_key;
 
     // ------------------------------------------------------------------
-    // Group 1: 基本的な署名の生成 (メッセージ長による変化)
+    // Group 1: Basic Credential Operations (Varying Message Length)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Basic_Credential_Ops");
         
         for &len in message_len.iter() {
-            // 入力データの準備
+            // Preparing the input data
             let mut message_fr_temp = Vec::new();
             for _ in 0..len {
                 message_fr_temp.push(Fr::rand(&mut rng));
@@ -41,24 +41,22 @@ fn mybbs_benchmark_pc(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 2: Proof検証 (複雑なパラメータ)
+    // Group 2: Proof Verification (Complex Parameters: Message Length, Open Attribute Count)
     // ------------------------------------------------------------------
-    // ここはパラメータが3つ(mlen, olen, inum)あるため、BenchmarkIdの表示を工夫します。
-    // まとめて1つのグループに入れることでディレクトリ構造を整理します。
     {
         let mut group = c.benchmark_group("Presentation_Ops");
-        // サンプル時間を少し伸ばす必要がある場合はここで設定（例: 10秒）
+        // If you need to extend the sample time for more complex operations, you can set it here (e.g., 10 seconds).
         // group.measurement_time(std::time::Duration::from_secs(10));
 
         for &mlen in message_len.iter() {
-            // メッセージ準備
+            // Preparing the Message
             let mut message_fr_temp = Vec::new();
             for _ in 0..mlen {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
             let cred_temp = issuer::sign(&pp, &issuer_key_pair.secret_key, &message_fr_temp);
 
-            // 公開する属性の数を決定
+            // Determining the number of attributes to open
             let open_message_6 = mlen * 3 / 5;
             let mut open_message_len_temp: Vec<i32> = Vec::new();
             if open_message_6 == 3 {
@@ -67,10 +65,10 @@ fn mybbs_benchmark_pc(c: &mut Criterion) {
                 open_message_len_temp.extend_from_slice(&[3, open_message_6 as i32, (mlen as i32) - 3]);
             }
             open_message_len_temp.sort();
-            open_message_len_temp.dedup(); // 重複排除（念の為）
+            open_message_len_temp.dedup(); // Remove duplicates (just in case)
 
             for &olen in open_message_len_temp.iter() {
-                // 公開インデックスの選択
+                // Selecting indices to open
                 let mut open_temp = Vec::new();
                 while open_temp.len() < olen as usize {
                     let x = rng.gen_range(0..mlen);
@@ -80,11 +78,11 @@ fn mybbs_benchmark_pc(c: &mut Criterion) {
                 }
                 open_temp.sort();
 
-                // パラメータ識別文字列を作成 (例: "m10_o3")
+                // Creating a parameter identification string (e.g., "m10_o3")
                 let param_str = format!("m{}_o{}", mlen, olen);
 
                 // Verify Proof Benchmark
-                // ベンチマーク内で毎回生成すると遅いので、計測外で一度生成
+                // Note: We need to generate the proof before the benchmark loop since we are only measuring the verification time here.
                 let (pikp, pizkp) = proof::prove(&pp, &cred_temp,  &message_fr_temp, &open_temp);
                     
                 group.bench_with_input(BenchmarkId::new("Verify_Proof", &param_str), &param_str, |b, _| {
@@ -108,13 +106,13 @@ fn mybbs_benchmark_android(c: &mut Criterion) {
     let ipk = &issuer_key_pair.public_key;
 
     // ------------------------------------------------------------------
-    // Group 1: 基本的な署名の検証 (メッセージ長による変化)
+    // Group 1: Basic Credential Operations (Varying Message Length)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Basic_Credential_Ops");
         
         for &len in message_len.iter() {
-            // 入力データの準備
+            // Preparing the input data
             let mut message_fr_temp = Vec::new();
             for _ in 0..len {
                 message_fr_temp.push(Fr::rand(&mut rng));
@@ -133,24 +131,22 @@ fn mybbs_benchmark_android(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 3: Proof 生成 (複雑なパラメータ)
+    // Group 3: Presentation Generation (Complex Parameters: Message Length, Open Attribute Count)
     // ------------------------------------------------------------------
-    // ここはパラメータが3つ(mlen, olen, inum)あるため、BenchmarkIdの表示を工夫します。
-    // まとめて1つのグループに入れることでディレクトリ構造を整理します。
     {
         let mut group = c.benchmark_group("Presentation_Ops");
-        // サンプル時間を少し伸ばす必要がある場合はここで設定（例: 10秒）
+        // If you need to extend the sample time for more complex operations, you can set it here (e.g., 10 seconds).
         // group.measurement_time(std::time::Duration::from_secs(10));
 
         for &mlen in message_len.iter() {
-            // メッセージ準備
+            // Preparing the Message
             let mut message_fr_temp = Vec::new();
             for _ in 0..mlen {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
             let cred_temp = issuer::sign(&pp, isk, &message_fr_temp);
 
-            // 公開する属性の数を決定
+            // Determining the number of attributes to open
             let open_message_6 = mlen * 3 / 5;
             let mut open_message_len_temp: Vec<i32> = Vec::new();
             if open_message_6 == 3 {
@@ -159,10 +155,10 @@ fn mybbs_benchmark_android(c: &mut Criterion) {
                 open_message_len_temp.extend_from_slice(&[3, open_message_6 as i32, (mlen as i32) - 3]);
             }
             open_message_len_temp.sort();
-            open_message_len_temp.dedup(); // 重複排除（念の為）
+            open_message_len_temp.dedup(); // Remove duplicates (just in case)
 
             for &olen in open_message_len_temp.iter() {
-                // 公開インデックスの選択
+                // Selecting indices to open
                 let mut open_temp = Vec::new();
                 while open_temp.len() < olen as usize {
                     let x = rng.gen_range(0..mlen);
@@ -172,7 +168,7 @@ fn mybbs_benchmark_android(c: &mut Criterion) {
                 }
                 open_temp.sort();
 
-                // パラメータ識別文字列を作成 (例: "m10_o3")
+                // Creating a parameter identification string (e.g., "m10_o3")
                 let param_str = format!("m{}_o{}", mlen, olen);
 
                 // Present Benchmark
