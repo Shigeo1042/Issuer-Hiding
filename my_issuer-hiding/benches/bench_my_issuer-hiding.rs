@@ -5,7 +5,7 @@ use ark_ec::pairing::Pairing;
 use ark_std::{vec::Vec, UniformRand};
 use rand::{self, Rng, thread_rng};
 pub type Fr = <Bls12_381 as Pairing>::ScalarField;
-use issuer_hiding_shigeo::issuer_hiding as ih;
+use my_issuer_hiding::issuer_hiding as ih;
 
 fn myih_benchmark(c: &mut Criterion){
     let message_len = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];

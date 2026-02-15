@@ -1,5 +1,5 @@
 [package]
-name = "issuer-hiding_shigeo"
+name = "my_issuer-hiding"
 version = "0.1.0"
 edition = "2021"
 
@@ -19,10 +19,10 @@ mybbs = {path = "../mybbs"}
 criterion = "0.7.0"
 
 [lib]
-name = "issuer_hiding_shigeo"
+name = "my_issuer_hiding"
 path = "src/lib.rs"
 
 [[bench]]
 name = "bench_mybbs-issuer-hiding"
-path = "benches/bench_issuer-hiding_shigeo.rs"
+path = "benches/bench_my_issuer-hiding.rs"
 harness = false
