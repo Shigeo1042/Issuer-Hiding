@@ -39,13 +39,13 @@ fn bobolz_benchmark(c: &mut Criterion) {
     let verifier_key_pair = ih::verifier_key_gen(&pp);
 
     // ------------------------------------------------------------------
-    // Group 1: 基本的な署名の生成・検証 (メッセージ長による変化)
+    // Group 1: Basic Signature Generation and Verification (Variation Based on Message Length)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Basic_Credential_Ops");
         
         for &len in message_len.iter() {
-            // 入力データの準備
+            // Preparing Input Data
             let mut message_fr_temp = Vec::new();
             for _ in 0..len {
                 message_fr_temp.push(Fr::rand(&mut rng));
@@ -59,7 +59,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
                 });
             });
 
-            // Verify Credential (署名生成済みデータが必要)
+            // Verify Credential (Generated Data Required)
             let cred_temp = ih::issue(&pp, &issuer_key_pair.secret_key, &message_fr_temp);
             group.bench_with_input(BenchmarkId::new("Verify", len), &len, |b, &_| {
                 b.iter(|| {
@@ -72,19 +72,19 @@ fn bobolz_benchmark(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 2: Policy の発行・検証 (Issuer数による変化)
+    // Group 2: Trusted List Issuance and Verification (Variation Based on Number of Issuers)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Policy_Ops");
 
         for &num in issuer_num.iter() {
-            // リストの準備
+            // Preparing the List
             let mut issuer_list_temp = Vec::new();
             for _ in 0..num {
                 let keypair = ih::issuer_key_gen(&pp);
                 issuer_list_temp.push(keypair.public_key.clone());
             }
-            // ランダムな位置にターゲットを挿入
+            // Inserting the Target at a Random Position
             let r = rng.gen_range(0..num);
             if r < issuer_list_temp.len() {
                  issuer_list_temp[r] = issuer_key_pair.public_key.clone();
@@ -98,7 +98,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
                 });
             });
 
-            // Policy (生成済みデータが必要)
+            // Policy (Generated Data Required)
             let trusted_list = ih::issue_list(&pp, &issuer_list_temp, &verifier_key_pair);
             group.bench_with_input(BenchmarkId::new("Verify_List", num), &num, |b, &_| {
                 b.iter(|| {
@@ -111,24 +111,22 @@ fn bobolz_benchmark(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 3: Presentation 生成・検証 (複雑なパラメータ)
+    // Group 3: Presentation Generation and Verification (Complex Parameters: Message Length, Open Attribute Count, Number of Issuers)
     // ------------------------------------------------------------------
-    // ここはパラメータが3つ(mlen, olen, inum)あるため、BenchmarkIdの表示を工夫します。
-    // まとめて1つのグループに入れることでディレクトリ構造を整理します。
     {
         let mut group = c.benchmark_group("Presentation_Ops");
-        // サンプル時間を少し伸ばす必要がある場合はここで設定（例: 10秒）
+        // If you need to extend the sample time for more complex operations, you can set it here (e.g., 10 seconds).
         // group.measurement_time(std::time::Duration::from_secs(10));
 
         for &mlen in message_len.iter() {
-            // メッセージ準備
+            // Preparing Messages
             let mut message_fr_temp = Vec::new();
             for _ in 0..mlen {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
             let cred_temp = ih::issue(&pp, &issuer_key_pair.secret_key, &message_fr_temp);
 
-            // 公開する属性の数を決定
+            // Determining the Number of Attributes to Open
             let open_message_6 = mlen * 3 / 5;
             let mut open_message_len_temp: Vec<i32> = Vec::new();
             if open_message_6 == 3 {
@@ -137,10 +135,10 @@ fn bobolz_benchmark(c: &mut Criterion) {
                 open_message_len_temp.extend_from_slice(&[3, open_message_6 as i32, (mlen as i32) - 3]);
             }
             open_message_len_temp.sort();
-            open_message_len_temp.dedup(); // 重複排除（念の為）
+            open_message_len_temp.dedup(); // Removing Duplicates (Just in Case)
 
             for &olen in open_message_len_temp.iter() {
-                // 公開インデックスの選択
+                // Selecting Public Indices
                 let mut open_temp = Vec::new();
                 while open_temp.len() < olen as usize {
                     let x = rng.gen_range(0..mlen);
@@ -151,7 +149,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
                 open_temp.sort();
 
                 for &inum in issuer_num.iter() {
-                    // Issuerリスト準備
+                    // Preparing the Issuer List
                     let mut issuer_list_temp = Vec::new();
                     for _ in 0..inum {
                         let kp = ih::issuer_key_gen(&pp);
@@ -162,7 +160,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
                     
                     let trusted_list = ih::issue_list(&pp, &issuer_list_temp, &verifier_key_pair);
 
-                    // パラメータ識別文字列を作成 (例: "m10_o3_i50")
+                    // Creating a Parameter Identification String (e.g., "m10_o3_i50")
                     let param_str = format!("m{}_o{}_i{}", mlen, olen, inum);
 
                     // Present Benchmark
@@ -174,7 +172,7 @@ fn bobolz_benchmark(c: &mut Criterion) {
                     });
 
                     // Verify Present Benchmark
-                    // ベンチマーク内で毎回生成すると遅いので、計測外で一度生成
+                    // Generating this every time in the benchmark would be slow, so we generate it once outside the measurement.
                     let pt = ih::present(&pp, &cred_temp, &issuer_key_pair.public_key, &message_fr_temp, &trusted_list, &open_temp);
                     
                     group.bench_with_input(BenchmarkId::new("Verify_Present", &param_str), &param_str, |b, _| {
@@ -199,19 +197,19 @@ fn bobolz_mobile_benchmark(c: &mut Criterion) {
     let verifier_key_pair = ih::verifier_key_gen(&pp);
 
     // ------------------------------------------------------------------
-    // Group 1: 基本的な署名の検証 (メッセージ長による変化)
+    // Group 1: Basic Signature Generation (Variation Based on Message Length)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Basic_Credential_Ops");
         
         for &len in message_len.iter() {
-            // 入力データの準備
+            // Preparing Input Data
             let mut message_fr_temp = Vec::new();
             for _ in 0..len {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
 
-            // Verify Credential (署名生成済みデータが必要)
+            // Verify Credential (Generated Data Required)
             let cred_temp = ih::issue(&pp, &issuer_key_pair.secret_key, &message_fr_temp);
             group.bench_with_input(BenchmarkId::new("Verify", len), &len, |b, &_| {
                 b.iter(|| {
@@ -224,25 +222,25 @@ fn bobolz_mobile_benchmark(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 2: Policy の検証 (Issuer数による変化)
+    // Group 2: Policy Verification (Variation Based on Number of Issuers)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Policy_Ops");
 
         for &num in issuer_num.iter() {
-            // リストの準備
+            // Preparing the List
             let mut issuer_list_temp = Vec::new();
             for _ in 0..num {
                 let keypair = ih::issuer_key_gen(&pp);
                 issuer_list_temp.push(keypair.public_key.clone());
             }
-            // ランダムな位置にターゲットを挿入
-            let r = rng.gen_range(0..num); // gen_range(1..num)だとnum=5のときindex 0が選ばれない可能性があるため修正考慮(元ロジック尊重なら戻してください)
+            // Inserting the Target at a Random Position
+            let r = rng.gen_range(0..num);
             if r < issuer_list_temp.len() {
                  issuer_list_temp[r] = issuer_key_pair.public_key.clone();
             }
 
-            // Policy (生成済みデータが必要)
+            // Policy (Generated Data Required)
             let trusted_list = ih::issue_list(&pp, &issuer_list_temp, &verifier_key_pair);
             group.bench_with_input(BenchmarkId::new("Verify_List", num), &num, |b, &_| {
                 b.iter(|| {
@@ -255,24 +253,22 @@ fn bobolz_mobile_benchmark(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 3: Presentation 生成 (複雑なパラメータ)
+    // Group 3: Presentation Generattion (Variation Based on Message Length, Open Attribute Count, Number of Issuers)
     // ------------------------------------------------------------------
-    // ここはパラメータが3つ(mlen, olen, inum)あるため、BenchmarkIdの表示を工夫します。
-    // まとめて1つのグループに入れることでディレクトリ構造を整理します。
     {
         let mut group = c.benchmark_group("Presentation_Ops");
-        // サンプル時間を少し伸ばす必要がある場合はここで設定（例: 10秒）
+        // If you need to extend the sample time for more complex operations, you can set it here (e.g., 10 seconds).
         // group.measurement_time(std::time::Duration::from_secs(10));
 
         for &mlen in message_len.iter() {
-            // メッセージ準備
+            // Preparing Messages
             let mut message_fr_temp = Vec::new();
             for _ in 0..mlen {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
             let cred_temp = ih::issue(&pp, &issuer_key_pair.secret_key, &message_fr_temp);
 
-            // 公開する属性の数を決定
+            // Determining the Number of Attributes to Open
             let open_message_6 = mlen * 3 / 5;
             let mut open_message_len_temp: Vec<i32> = Vec::new();
             if open_message_6 == 3 {
@@ -281,10 +277,10 @@ fn bobolz_mobile_benchmark(c: &mut Criterion) {
                 open_message_len_temp.extend_from_slice(&[3, open_message_6 as i32, (mlen as i32) - 3]);
             }
             open_message_len_temp.sort();
-            open_message_len_temp.dedup(); // 重複排除（念の為）
+            open_message_len_temp.dedup(); // Removing Duplicates (Just in Case)
 
             for &olen in open_message_len_temp.iter() {
-                // 公開インデックスの選択
+                // Selecting Public Indices
                 let mut open_temp = Vec::new();
                 while open_temp.len() < olen as usize {
                     let x = rng.gen_range(0..mlen);
@@ -295,7 +291,7 @@ fn bobolz_mobile_benchmark(c: &mut Criterion) {
                 open_temp.sort();
 
                 for &inum in issuer_num.iter() {
-                    // Issuerリスト準備
+                    // Preparing the Issuer List
                     let mut issuer_list_temp = Vec::new();
                     for _ in 0..inum {
                         let kp = ih::issuer_key_gen(&pp);
@@ -306,7 +302,7 @@ fn bobolz_mobile_benchmark(c: &mut Criterion) {
                     
                     let trusted_list = ih::issue_list(&pp, &issuer_list_temp, &verifier_key_pair);
 
-                    // パラメータ識別文字列を作成 (例: "m10_o3_i50")
+                    // Creating a Parameter Identification String (e.g., "m10_o3_i50")
                     let param_str = format!("m{}_o{}_i{}", mlen, olen, inum);
 
                     // Present Benchmark
@@ -347,13 +343,13 @@ fn bobolz_pc_benchmark(c: &mut Criterion) {
     let verifier_key_pair = ih::verifier_key_gen(&pp);
 
     // ------------------------------------------------------------------
-    // Group 1: 基本的な署名の生成 (メッセージ長による変化)
+    // Group 1: Basic Signature Generation (Variation Based on Message Length)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Basic_Credential_Ops");
         
         for &len in message_len.iter() {
-            // 入力データの準備
+            // Preparing Input Data
             let mut message_fr_temp = Vec::new();
             for _ in 0..len {
                 message_fr_temp.push(Fr::rand(&mut rng));
@@ -371,19 +367,19 @@ fn bobolz_pc_benchmark(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 2: Policy の発行 (Issuer数による変化)
+    // Group 2: Policy Generation (Variation Based on Number of Issuers)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Policy_Ops");
 
         for &num in issuer_num.iter() {
-            // リストの準備
+            // Preparing the List
             let mut issuer_list_temp = Vec::new();
             for _ in 0..num {
                 let keypair = ih::issuer_key_gen(&pp);
                 issuer_list_temp.push(keypair.public_key.clone());
             }
-            // ランダムな位置にターゲットを挿入
+            // Inserting the Target at a Random Position
             let r = rng.gen_range(0..num);
             if r < issuer_list_temp.len() {
                  issuer_list_temp[r] = issuer_key_pair.public_key.clone();
@@ -401,24 +397,22 @@ fn bobolz_pc_benchmark(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 3: Presentation 検証 (複雑なパラメータ)
+    // Group 3: Presentation Verification (Variation Based on Message Length, Open Attribute Count, Number of Issuers)
     // ------------------------------------------------------------------
-    // ここはパラメータが3つ(mlen, olen, inum)あるため、BenchmarkIdの表示を工夫します。
-    // まとめて1つのグループに入れることでディレクトリ構造を整理します。
     {
         let mut group = c.benchmark_group("Presentation_Ops");
-        // サンプル時間を少し伸ばす必要がある場合はここで設定（例: 10秒）
+        // If you need to extend the sample time for more complex operations, you can set it here (e.g., 10 seconds).
         // group.measurement_time(std::time::Duration::from_secs(10));
 
         for &mlen in message_len.iter() {
-            // メッセージ準備
+            // Preparing Messages
             let mut message_fr_temp = Vec::new();
             for _ in 0..mlen {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
             let cred_temp = ih::issue(&pp, &issuer_key_pair.secret_key, &message_fr_temp);
 
-            // 公開する属性の数を決定
+            // Determining the Number of Attributes to Open
             let open_message_6 = mlen * 3 / 5;
             let mut open_message_len_temp: Vec<i32> = Vec::new();
             if open_message_6 == 3 {
@@ -427,10 +421,10 @@ fn bobolz_pc_benchmark(c: &mut Criterion) {
                 open_message_len_temp.extend_from_slice(&[3, open_message_6 as i32, (mlen as i32) - 3]);
             }
             open_message_len_temp.sort();
-            open_message_len_temp.dedup(); // 重複排除（念の為）
+            open_message_len_temp.dedup(); // Removing Duplicates (Just in Case)
 
             for &olen in open_message_len_temp.iter() {
-                // 公開インデックスの選択
+                // Selecting Public Indices
                 let mut open_temp = Vec::new();
                 while open_temp.len() < olen as usize {
                     let x = rng.gen_range(0..mlen);
@@ -441,7 +435,7 @@ fn bobolz_pc_benchmark(c: &mut Criterion) {
                 open_temp.sort();
 
                 for &inum in issuer_num.iter() {
-                    // Issuerリスト準備
+                    // Preparing the Issuer List
                     let mut issuer_list_temp = Vec::new();
                     for _ in 0..inum {
                         let kp = ih::issuer_key_gen(&pp);
@@ -452,11 +446,11 @@ fn bobolz_pc_benchmark(c: &mut Criterion) {
 
                     let trusted_list = ih::issue_list(&pp, &issuer_list_temp, &verifier_key_pair);
 
-                    // パラメータ識別文字列を作成 (例: "m10_o3_i50")
+                    // Creating a Parameter Identification String (e.g., "m10_o3_i50")
                     let param_str = format!("m{}_o{}_i{}", mlen, olen, inum);
 
                     // Verify Present Benchmark
-                    // ベンチマーク内で毎回生成すると遅いので、計測外で一度生成
+                    // Generating this every time in the benchmark would be slow, so we generate it once outside the measurement.
                     let pt = ih::present(&pp, &cred_temp, &issuer_key_pair.public_key, &message_fr_temp, &trusted_list, &open_temp);
                     
                     group.bench_with_input(BenchmarkId::new("Verify_Present", &param_str), &param_str, |b, _| {

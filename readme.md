@@ -10,14 +10,14 @@ Licensed under either of
     - Scheme proposed by Bobolz et al.
     - [paper](https://link.springer.com/chapter/10.1007/978-3-030-92548-2_9)
     - [bobolz-credential](./bobolz-credential/): Rust implementation by the repository owner (built from scratch based on the paper)
-    - [Authors' Implementation (Java)](https://github.com/cryptimeleon/issuer-hiding-cred)
+    - [Reference Implementation (Java)](https://github.com/cryptimeleon/issuer-hiding-cred)
     - The Zero-Knowledge Proof (ZKP) component was developed with reference to [the CDL16 paper](https://link.springer.com/chapter/10.1007/978-3-319-45572-3_1)
 
 - Protego: Efficient, Revocable and Auditable Anonymous Credentials with Applications to Hyperledger Fabric
     - An anonymous credential scheme supporting Issuer-Hiding proposed by Connolly et al.
     - [paper](https://link.springer.com/chapter/10.1007/978-3-031-22912-1_11)
     - [crypto_docknet](./crypto_docknet/delegatable_credentials/): Contains the Rust implementation by docknetwork（[Original Repository](https://github.com/docknetwork/crypto/tree/main/delegatable_credentials)） and benchmarks created by the repository owner.
-    - [Authors' Implementation](https://github.com/octaviopk9/indocrypt_protego/tree/main)
+    - [Reference Implementation](https://github.com/octaviopk9/indocrypt_protego/tree/main)
 
 - BBS Signature adaptation based on Bobolz et al.
     - Scheme proposed by the repository owner and co-authers.
@@ -28,7 +28,7 @@ Licensed under either of
 - Hidden Issuer Anonymous Credential
     - Issuer-Hiding scheme for PS (Pointcheval-Sanders) signatures proposed by Bosk et al.
     - [paper](https://hal.science/hal-03789485/)
-    - [Authors' Implementation](https://gitlab.inria.fr/mgestin/rust_hidden_issuer_signature)
+    - [Reference Implementation](https://gitlab.inria.fr/mgestin/rust_hidden_issuer_signature)
 
 - Compact Issuer-Hiding Authentication, Application to Anonymous Credential
     - Issuer-Hiding scheme for PS signatures proposed by Sanders and Traoré.

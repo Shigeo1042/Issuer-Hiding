@@ -30,13 +30,13 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
     let issuer_key_pair = ih::key_gen(&pp);
 
     // ------------------------------------------------------------------
-    // Group 1: 基本的な署名の生成・検証 (メッセージ長による変化)
+    // Group 1: Basic Signature Generation and Verification (Variation Based on Message Length)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Basic_Credential_Ops");
         
         for &len in message_len.iter() {
-            // 入力データの準備
+            // Preparing Input Data
             let mut message_fr_temp = Vec::new();
             for _ in 0..len {
                 message_fr_temp.push(Fr::rand(&mut rng));
@@ -50,7 +50,7 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
                 });
             });
 
-            // Verify Credential (署名生成済みデータが必要)
+            // Verify Credential (Generated Data Required)
             let cred_temp = ih::sign(&pp, &issuer_key_pair.sk, &message_fr_temp);
             group.bench_with_input(BenchmarkId::new("Verify", len), &len, |b, &_| {
                 b.iter(|| {
@@ -63,19 +63,19 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 2: Policy の発行・検証 (Issuer数による変化)
+    // Group 2: Policy Issuance and Verification (Variation Based on Number of Issuers)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Policy_Ops");
 
         for &num in issuer_num.iter() {
-            // リストの準備
+            // Preparing the List
             let mut issuer_list_temp = Vec::new();
             for _ in 0..num {
                 let keypair = ih::key_gen(&pp);
                 issuer_list_temp.push(keypair.pk.clone());
             }
-            // ランダムな位置にターゲットを挿入
+            // Inserting the Target at a Random Position
             let r = rng.gen_range(0..num);
             if r < issuer_list_temp.len() {
                  issuer_list_temp[r] = issuer_key_pair.pk.clone();
@@ -89,7 +89,7 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
                 });
             });
 
-            // Policy (生成済みデータが必要)
+            // Policy (Generated Data Required)
             let (policy_key_pair, policy_pi) = ih::set_policy(&pp, &issuer_list_temp);
             let policy_pk = &policy_key_pair.ppk;
             group.bench_with_input(BenchmarkId::new("Verify_List", num), &num, |b, &_| {
@@ -103,24 +103,22 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 3: Presentation 生成・検証 (複雑なパラメータ)
+    // Group 3: Presentation Generation and Verification (Complex Parameters: Message Length, Open Attribute Count, Number of Issuers)
     // ------------------------------------------------------------------
-    // ここはパラメータが3つ(mlen, olen, inum)あるため、BenchmarkIdの表示を工夫します。
-    // まとめて1つのグループに入れることでディレクトリ構造を整理します。
     {
         let mut group = c.benchmark_group("Presentation_Ops");
-        // サンプル時間を少し伸ばす必要がある場合はここで設定（例: 10秒）
+        // If you need to extend the sample time for more complex operations, you can set it here (e.g., 10 seconds).
         // group.measurement_time(std::time::Duration::from_secs(10));
 
         for &mlen in message_len.iter() {
-            // メッセージ準備
+            // Preparing Messages
             let mut message_fr_temp = Vec::new();
             for _ in 0..mlen {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
             let cred_temp = ih::sign(&pp, &issuer_key_pair.sk, &message_fr_temp);
 
-            // 公開する属性の数を決定
+            // Determining the Number of Attributes to Open
             let open_message_6 = mlen * 3 / 5;
             let mut open_message_len_temp: Vec<i32> = Vec::new();
             if open_message_6 == 3 {
@@ -129,10 +127,10 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
                 open_message_len_temp.extend_from_slice(&[3, open_message_6 as i32, (mlen as i32) - 3]);
             }
             open_message_len_temp.sort();
-            open_message_len_temp.dedup(); // 重複排除（念の為）
+            open_message_len_temp.dedup(); // Removing Duplicates (Just in Case)
 
             for &olen in open_message_len_temp.iter() {
-                // 公開インデックスの選択
+                // Selecting Public Indices
                 let mut open_temp = Vec::new();
                 while open_temp.len() < olen as usize {
                     let x = rng.gen_range(0..mlen);
@@ -143,7 +141,7 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
                 open_temp.sort();
 
                 for &inum in issuer_num.iter() {
-                    // Issuerリスト準備
+                    // Preparing the Issuer List
                     let mut issuer_list_temp = Vec::new();
                     for _ in 0..inum {
                         let kp = ih::key_gen(&pp);
@@ -155,7 +153,7 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
                     let (policy_key_pair, _) = ih::set_policy(&pp, &issuer_list_temp);
                     let policy_pk = &policy_key_pair.ppk;
 
-                    // パラメータ識別文字列を作成 (例: "m10_o3_i50")
+                    // Creating a Parameter Identification String (e.g., "m10_o3_i50")
                     let param_str = format!("m{}_o{}_i{}", mlen, olen, inum);
 
                     // Present Benchmark
@@ -167,7 +165,7 @@ fn sanders_ih_benchmark(c: &mut Criterion) {
                     });
 
                     // Verify Present Benchmark
-                    // ベンチマーク内で毎回生成すると遅いので、計測外で一度生成
+                    // Generating this every time in the benchmark would be slow, so we generate it once outside the measurement.
                     let pt = ih::create_proof(&pp, &issuer_key_pair.pk,&cred_temp, &policy_pk,  &message_fr_temp, &open_temp);
                     
                     group.bench_with_input(BenchmarkId::new("Verify_Present", &param_str), &param_str, |b, _| {
@@ -192,13 +190,13 @@ fn sanders_ih_benchmark_pc(c: &mut Criterion) {
     let issuer_key_pair = ih::key_gen(&pp);
 
     // ------------------------------------------------------------------
-    // Group 1: 基本的な署名の生成 (メッセージ長による変化)
+    // Group 1: Basic Signature Generation (Variation Based on Message Length)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Basic_Credential_Ops");
         
         for &len in message_len.iter() {
-            // 入力データの準備
+            // Preparing Input Data
             let mut message_fr_temp = Vec::new();
             for _ in 0..len {
                 message_fr_temp.push(Fr::rand(&mut rng));
@@ -216,19 +214,19 @@ fn sanders_ih_benchmark_pc(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 2: Policy の発行 (Issuer数による変化)
+    // Group 2: Policy Issuance (Variation Based on Number of Issuers)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Policy_Ops");
 
         for &num in issuer_num.iter() {
-            // リストの準備
+            // Preparing the List
             let mut issuer_list_temp = Vec::new();
             for _ in 0..num {
                 let keypair = ih::key_gen(&pp);
                 issuer_list_temp.push(keypair.pk.clone());
             }
-            // ランダムな位置にターゲットを挿入
+            // Inserting the Target at a Random Position
             let r = rng.gen_range(0..num);
             if r < issuer_list_temp.len() {
                  issuer_list_temp[r] = issuer_key_pair.pk.clone();
@@ -246,24 +244,22 @@ fn sanders_ih_benchmark_pc(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 3: Presentation検証 (複雑なパラメータ)
+    // Group 3: Presentation Verification (Complex Parameters: Message Length, Open Attribute Count, Number of Issuers)
     // ------------------------------------------------------------------
-    // ここはパラメータが3つ(mlen, olen, inum)あるため、BenchmarkIdの表示を工夫します。
-    // まとめて1つのグループに入れることでディレクトリ構造を整理します。
     {
         let mut group = c.benchmark_group("Presentation_Ops");
-        // サンプル時間を少し伸ばす必要がある場合はここで設定（例: 10秒）
+        // If you need to extend the sample time for more complex operations, you can set it here (e.g., 10 seconds).
         // group.measurement_time(std::time::Duration::from_secs(10));
 
         for &mlen in message_len.iter() {
-            // メッセージ準備
+            // Preparing Messages
             let mut message_fr_temp = Vec::new();
             for _ in 0..mlen {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
             let cred_temp = ih::sign(&pp, &issuer_key_pair.sk, &message_fr_temp);
 
-            // 公開する属性の数を決定
+            // Determining the Number of Attributes to Open
             let open_message_6 = mlen * 3 / 5;
             let mut open_message_len_temp: Vec<i32> = Vec::new();
             if open_message_6 == 3 {
@@ -272,10 +268,10 @@ fn sanders_ih_benchmark_pc(c: &mut Criterion) {
                 open_message_len_temp.extend_from_slice(&[3, open_message_6 as i32, (mlen as i32) - 3]);
             }
             open_message_len_temp.sort();
-            open_message_len_temp.dedup(); // 重複排除（念の為）
+            open_message_len_temp.dedup(); // Removing Duplicates (Just in Case)
 
             for &olen in open_message_len_temp.iter() {
-                // 公開インデックスの選択
+                // Selecting Public Indices
                 let mut open_temp = Vec::new();
                 while open_temp.len() < olen as usize {
                     let x = rng.gen_range(0..mlen);
@@ -286,7 +282,7 @@ fn sanders_ih_benchmark_pc(c: &mut Criterion) {
                 open_temp.sort();
 
                 for &inum in issuer_num.iter() {
-                    // Issuerリスト準備
+                    // Preparing the Issuer List
                     let mut issuer_list_temp = Vec::new();
                     for _ in 0..inum {
                         let kp = ih::key_gen(&pp);
@@ -297,11 +293,11 @@ fn sanders_ih_benchmark_pc(c: &mut Criterion) {
                     let (policy_key_pair, _) = ih::set_policy(&pp, &issuer_list_temp);
                     let policy_pk = &policy_key_pair.ppk;
 
-                    // パラメータ識別文字列を作成 (例: "m10_o3_i50")
+                    // Creating a Parameter Identification String (e.g., "m10_o3_i50")
                     let param_str = format!("m{}_o{}_i{}", mlen, olen, inum);
 
                     // Verify Present Benchmark
-                    // ベンチマーク内で毎回生成すると遅いので、計測外で一度生成
+                    // Generating this every time in the benchmark would be slow, so we generate it once outside the measurement.
                     let pt = ih::create_proof(&pp, &issuer_key_pair.pk,&cred_temp, &policy_pk,  &message_fr_temp, &open_temp);
                     
                     group.bench_with_input(BenchmarkId::new("Verify_Present", &param_str), &param_str, |b, _| {
@@ -326,19 +322,19 @@ fn sanders_ih_benchmark_android(c: &mut Criterion) {
     let issuer_key_pair = ih::key_gen(&pp);
 
     // ------------------------------------------------------------------
-    // Group 1: 基本的な署名の検証 (メッセージ長による変化)
+    // Group 1: Basic Signature Verification (Variation Based on Message Length)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Basic_Credential_Ops");
         
         for &len in message_len.iter() {
-            // 入力データの準備
+            // Preparing Input Data
             let mut message_fr_temp = Vec::new();
             for _ in 0..len {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
 
-            // Verify Credential (署名生成済みデータが必要)
+            // Verify Credential (Generated Data Required)
             let cred_temp = ih::sign(&pp, &issuer_key_pair.sk, &message_fr_temp);
             group.bench_with_input(BenchmarkId::new("Verify", len), &len, |b, &_| {
                 b.iter(|| {
@@ -351,25 +347,25 @@ fn sanders_ih_benchmark_android(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 2: Policy の検証 (Issuer数による変化)
+    // Group 2: Policy Verification (Variation Based on Number of Issuers)
     // ------------------------------------------------------------------
     {
         let mut group = c.benchmark_group("Policy_Ops");
 
         for &num in issuer_num.iter() {
-            // リストの準備
+            // Preparing the List
             let mut issuer_list_temp = Vec::new();
             for _ in 0..num {
                 let keypair = ih::key_gen(&pp);
                 issuer_list_temp.push(keypair.pk.clone());
             }
-            // ランダムな位置にターゲットを挿入
-            let r = rng.gen_range(0..num); // gen_range(1..num)だとnum=5のときindex 0が選ばれない可能性があるため修正考慮(元ロジック尊重なら戻してください)
+            // Inserting the Target at a Random Position
+            let r = rng.gen_range(0..num);
             if r < issuer_list_temp.len() {
                  issuer_list_temp[r] = issuer_key_pair.pk.clone();
             }
 
-            // Policy (生成済みデータが必要)
+            // Policy (Generated Data Required)
             let (policy_key_pair, policy_pi) = ih::set_policy(&pp, &issuer_list_temp);
             let policy_pk = &policy_key_pair.ppk;
             group.bench_with_input(BenchmarkId::new("Verify_List", num), &num, |b, &_| {
@@ -383,24 +379,22 @@ fn sanders_ih_benchmark_android(c: &mut Criterion) {
     }
 
     // ------------------------------------------------------------------
-    // Group 3: Presentation 生成 (複雑なパラメータ)
+    // Group 3: Presentation Generation (Complex Parameters: Message Length, Open Attribute Count, Number of Issuers)
     // ------------------------------------------------------------------
-    // ここはパラメータが3つ(mlen, olen, inum)あるため、BenchmarkIdの表示を工夫します。
-    // まとめて1つのグループに入れることでディレクトリ構造を整理します。
     {
         let mut group = c.benchmark_group("Presentation_Ops");
-        // サンプル時間を少し伸ばす必要がある場合はここで設定（例: 10秒）
+        // If you need to extend the sample time for more complex operations, you can set it here (e.g., 10 seconds).
         // group.measurement_time(std::time::Duration::from_secs(10));
 
         for &mlen in message_len.iter() {
-            // メッセージ準備
+            // Preparing Messages
             let mut message_fr_temp = Vec::new();
             for _ in 0..mlen {
                 message_fr_temp.push(Fr::rand(&mut rng));
             }
             let cred_temp = ih::sign(&pp, &issuer_key_pair.sk, &message_fr_temp);
 
-            // 公開する属性の数を決定
+            // Determining the Number of Attributes to Open
             let open_message_6 = mlen * 3 / 5;
             let mut open_message_len_temp: Vec<i32> = Vec::new();
             if open_message_6 == 3 {
@@ -409,10 +403,10 @@ fn sanders_ih_benchmark_android(c: &mut Criterion) {
                 open_message_len_temp.extend_from_slice(&[3, open_message_6 as i32, (mlen as i32) - 3]);
             }
             open_message_len_temp.sort();
-            open_message_len_temp.dedup(); // 重複排除（念の為）
+            open_message_len_temp.dedup(); // Removing Duplicates (Just in Case)
 
             for &olen in open_message_len_temp.iter() {
-                // 公開インデックスの選択
+                // Selecting Public Indices
                 let mut open_temp = Vec::new();
                 while open_temp.len() < olen as usize {
                     let x = rng.gen_range(0..mlen);
@@ -423,7 +417,7 @@ fn sanders_ih_benchmark_android(c: &mut Criterion) {
                 open_temp.sort();
 
                 for &inum in issuer_num.iter() {
-                    // Issuerリスト準備
+                    // Preparing the Issuer List
                     let mut issuer_list_temp = Vec::new();
                     for _ in 0..inum {
                         let kp = ih::key_gen(&pp);
@@ -435,7 +429,7 @@ fn sanders_ih_benchmark_android(c: &mut Criterion) {
                     let (policy_key_pair, _) = ih::set_policy(&pp, &issuer_list_temp);
                     let policy_pk = &policy_key_pair.ppk;
 
-                    // パラメータ識別文字列を作成 (例: "m10_o3_i50")
+                    // Creating a Parameter Identification String (e.g., "m10_o3_i50")
                     let param_str = format!("m{}_o{}_i{}", mlen, olen, inum);
 
                     // Present Benchmark
